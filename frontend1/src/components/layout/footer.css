@@ -1,0 +1,126 @@
+.footer {
+  background: var(--primary);
+  color: rgba(255, 255, 255, 0.85);
+  margin-top: auto;
+}
+
+.footer__container {
+  max-width: var(--container-wide);
+  margin: 0 auto;
+  padding: 64px 24px 32px;
+}
+
+.footer__grid {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr 1fr 1.2fr;
+  gap: 48px;
+  margin-bottom: 48px;
+}
+
+.footer__logo {
+  display: inline-flex;
+  align-items: center;
+  line-height: 0;
+  text-decoration: none;
+}
+
+.footer__logo-img {
+  height: 48px;
+  width: auto;
+  max-width: 200px;
+  object-fit: contain;
+  display: block;
+  /* gold logo reads well on dark footer; if footer is light, keep as-is */
+}
+
+.footer__brand p {
+  font-size: 14px;
+  line-height: 1.7;
+  opacity: 0.8;
+  max-width: 300px;
+  margin-bottom: 20px;
+}
+
+.footer__social {
+  display: flex;
+  gap: 12px;
+}
+
+.footer__social a {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background var(--transition);
+}
+
+.footer__social a:hover {
+  background: var(--secondary);
+}
+
+.footer__col h4 {
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 16px;
+  letter-spacing: 0.02em;
+}
+
+.footer__col ul {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.footer__col a {
+  font-size: 14px;
+  opacity: 0.8;
+  transition: opacity var(--transition);
+}
+
+.footer__col a:hover {
+  opacity: 1;
+  color: var(--secondary);
+}
+
+.footer__contact li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 14px;
+  opacity: 0.8;
+}
+
+.footer__contact svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+  opacity: 0.7;
+}
+
+.footer__bottom {
+  padding-top: 24px;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  text-align: center;
+  font-size: 13px;
+  opacity: 0.6;
+}
+
+@media (max-width: 900px) {
+  .footer__grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 32px;
+  }
+}
+
+@media (max-width: 560px) {
+  .footer__grid {
+    grid-template-columns: 1fr;
+    gap: 28px;
+  }
+  .footer__container {
+    padding: 48px 20px 24px;
+  }
+}

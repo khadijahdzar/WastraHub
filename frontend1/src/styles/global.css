@@ -1,0 +1,112 @@
+@import './variables.css';
+
+*,
+*::before,
+*::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font);
+  background: var(--surface);
+  color: var(--text);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+a {
+  text-decoration: none;
+  color: inherit;
+}
+
+img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+ul, ol {
+  list-style: none;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  background: none;
+}
+
+input, select, textarea {
+  font-family: inherit;
+}
+
+.container {
+  width: 100%;
+  max-width: var(--container);
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+.container-wide {
+  width: 100%;
+  max-width: var(--container-wide);
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+/* Utility */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+
+/* ===== BATIK PATTERN BACKGROUND ===== */
+.bg-batik-pattern {
+  position: relative;
+  background-color: #F3E9DC;
+  background-image: url("/images/patterns/batik-pattern.png");
+  background-repeat: repeat;
+  background-size: 420px auto;
+  background-position: center top;
+}
+
+/* overlay biar konten tetap terbaca */
+.bg-batik-pattern::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    135deg,
+    rgba(243, 233, 220, 0.90) 0%,
+    rgba(250, 246, 241, 0.86) 50%,
+    rgba(255, 255, 255, 0.82) 100%
+  );
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* konten harus di atas overlay */
+.bg-batik-pattern > * {
+  position: relative;
+  z-index: 1;
+}
+
+@media (max-width: 480px) {
+  .container,
+  .container-wide {
+    padding: 0 16px;
+  }
+}

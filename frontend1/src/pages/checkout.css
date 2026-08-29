@@ -1,0 +1,235 @@
+.checkout-page {
+  padding: 40px 0 64px;
+}
+.checkout-page h1 {
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--primary);
+  margin-bottom: 32px;
+}
+.checkout__grid {
+  display: grid;
+  grid-template-columns: 1fr 360px;
+  gap: 32px;
+  align-items: start;
+}
+.checkout__form section {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  margin-bottom: 20px;
+}
+.checkout__form h3 {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--primary);
+  margin-bottom: 16px;
+}
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.form-group {
+  margin-bottom: 14px;
+}
+.form-group label {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  margin-bottom: 6px;
+  color: var(--text-muted);
+}
+.form-group input,
+.form-group textarea {
+  width: 100%;
+  padding: 11px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  outline: none;
+  transition: border-color var(--transition);
+}
+.form-group input:focus,
+.form-group textarea:focus {
+  border-color: var(--primary);
+}
+.radio-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.radio-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: border-color var(--transition);
+}
+.radio-card:has(input:checked) {
+  border-color: var(--primary);
+  background: var(--background);
+}
+.radio-card input { accent-color: var(--primary); }
+.checkout__summary {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  position: sticky;
+  top: 96px;
+}
+.checkout__summary h3 {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--primary);
+  margin-bottom: 16px;
+}
+.checkout__item {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  margin-bottom: 10px;
+  color: var(--text-muted);
+  gap: 12px;
+}
+.checkout__total {
+  display: flex;
+  justify-content: space-between;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  margin: 16px 0 20px;
+  font-size: 16px;
+}
+@media (max-width: 768px) {
+  .checkout__grid { grid-template-columns: 1fr; }
+  .form-row { grid-template-columns: 1fr; }
+}
+/* E-Wallet options */
+.ewallet-options {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid #E8DFD4;
+}
+
+.ewallet-options__label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #432818;
+  margin-bottom: 12px;
+}
+
+.ewallet-options__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 10px;
+}
+
+.ewallet-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1.5px solid #E8DFD4;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease;
+  background: #fff;
+  position: relative;
+}
+
+.ewallet-card input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.ewallet-card:hover {
+  border-color: #BB9457;
+}
+
+.ewallet-card--active {
+  border-color: #432818;
+  background: #F3E9DC;
+  box-shadow: 0 0 0 1px #432818;
+}
+
+.ewallet-card__badge {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.ewallet-card__name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1E1E1E;
+}
+
+.checkout__pay-note {
+  font-size: 13px;
+  color: #6B5E54;
+  margin-bottom: 12px;
+}
+
+.checkout__pay-note strong {
+  color: #432818;
+}
+
+.checkout__error {
+  color: #C1121F;
+  font-size: 13px;
+  margin-bottom: 12px;
+  line-height: 1.4;
+}
+/* Info rekening bank */
+.bank-account-info {
+  margin-top: 16px;
+}
+
+.bank-account-info__title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #432818;
+  margin-bottom: 8px;
+}
+
+.bank-account-info__box {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px 16px;
+  background: #fff;
+  border: 1px solid #E8DFD4;
+  border-radius: 12px;
+}
+
+.bank-account-info__bank {
+  font-size: 12px;
+  color: #6B5E54;
+}
+
+.bank-account-info__number {
+  font-size: 18px;
+  font-weight: 700;
+  color: #432818;
+  letter-spacing: 0.04em;
+}
+
+.bank-account-info__name {
+  font-size: 13px;
+  color: #6B5E54;
+}

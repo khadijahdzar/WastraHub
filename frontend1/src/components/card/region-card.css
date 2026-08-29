@@ -1,0 +1,101 @@
+/* Pill variant - for homepage horizontal scroll */
+.region-pill {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  min-width: 100px;
+  text-align: center;
+  transition: transform var(--transition);
+}
+
+.region-pill:hover {
+  transform: translateY(-3px);
+}
+
+.region-pill__image {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 3px solid var(--background);
+  box-shadow: var(--shadow-sm);
+  background: var(--background);
+}
+
+.region-pill__image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.region-pill__name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+/* Card variant */
+.region-card {
+  position: relative;
+  display: block;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  aspect-ratio: 4 / 5;
+  background: var(--background);
+}
+
+.region-card__image {
+  position: absolute;
+  inset: 0;
+}
+
+.region-card__image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.4s ease;
+}
+
+.region-card:hover .region-card__image img {
+  transform: scale(1.08);
+}
+
+.region-card__overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(30, 20, 10, 0.75) 0%, transparent 60%);
+}
+
+.region-card__content {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 20px;
+  color: #fff;
+}
+
+.region-card__content h3 {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.region-card__content p {
+  font-size: 13px;
+  opacity: 0.9;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.region-card__count {
+  display: inline-block;
+  margin-top: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  opacity: 0.85;
+}

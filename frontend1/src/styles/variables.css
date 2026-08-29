@@ -1,0 +1,28 @@
+:root {
+  --primary: #432818;
+  --secondary: #BB9457;
+  --background: #F3E9DC;
+  --surface: #FFFFFF;
+  --text: #1E1E1E;
+  --text-muted: #6B5E54;
+  --border: #E8DFD4;
+  --success: #2D6A4F;
+  --error: #C1121F;
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --radius-full: 9999px;
+
+  --shadow-sm: 0 2px 8px rgba(67, 40, 24, 0.06);
+  --shadow-md: 0 8px 24px rgba(67, 40, 24, 0.08);
+  --shadow-lg: 0 16px 48px rgba(67, 40, 24, 0.12);
+
+  --container: 1200px;
+  --container-wide: 1400px;
+
+  --font: 'Poppins', system-ui, -apple-system, sans-serif;
+
+  --transition: 0.25s ease;
+}

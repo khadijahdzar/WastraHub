@@ -1,0 +1,346 @@
+.regions-page {
+  padding: 48px 0 80px;
+  background: #fff;
+}
+
+.regions-page__inner {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+/* ===== Header ===== */
+.regions-page__header {
+  text-align: center;
+  max-width: 640px;
+  margin: 0 auto 48px;
+}
+
+.regions-page__header h1 {
+  font-size: clamp(28px, 4vw, 40px);
+  font-weight: 800;
+  color: #432818;
+  letter-spacing: -0.03em;
+  line-height: 1.2;
+  margin-bottom: 14px;
+}
+
+.regions-page__header p {
+  font-size: 16px;
+  line-height: 1.7;
+  color: #6B5E54;
+}
+
+/* ===== Featured Jawa Tengah ===== */
+.regions-featured {
+  display: grid;
+  grid-template-columns: 1.15fr 1fr;
+  gap: 36px;
+  align-items: center;
+  background: #F3E9DC;
+  border-radius: 24px;
+  padding: 40px 44px;
+  margin-bottom: 56px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 4px 16px rgba(67, 40, 24, 0.04);
+}
+
+.regions-featured__label {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #BB9457;
+  margin-bottom: 10px;
+}
+
+.regions-featured__content h2 {
+  font-size: 32px;
+  font-weight: 800;
+  color: #432818;
+  letter-spacing: -0.02em;
+  margin-bottom: 14px;
+}
+
+.regions-featured__content > p {
+  font-size: 15px;
+  line-height: 1.7;
+  color: #6B5E54;
+  margin-bottom: 20px;
+  max-width: 440px;
+}
+
+.regions-featured__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 24px;
+}
+
+.regions-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 16px;
+  background: #fff;
+  border: 1px solid #E8DFD4;
+  border-radius: 9999px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #432818;
+  text-decoration: none;
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease, color 0.2s ease;
+}
+
+.regions-chip:hover {
+  background: #432818;
+  border-color: #432818;
+  color: #fff;
+  transform: translateY(-1px);
+}
+
+.regions-featured__cta-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+/* ===== Map area (fixed) ===== */
+.regions-featured__map {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  min-width: 0; /* prevent grid blowout */
+}
+
+.regions-featured__map-frame {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  background: #EDE4D8;
+  border-radius: 16px;
+  border: 1px solid #E0D5C8;
+  overflow: hidden; /* clip OSM attribution overflow */
+  position: relative;
+  box-shadow: 0 2px 10px rgba(67, 40, 24, 0.06);
+}
+
+.regions-map-iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  display: block;
+  border-radius: 16px;
+}
+
+.regions-featured__map-caption {
+  margin: 10px 0 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: #8B7355;
+  text-align: center;
+  letter-spacing: 0.02em;
+}
+
+/* ===== Other region cards ===== */
+.regions-grid-section {
+  margin-bottom: 56px;
+}
+
+.regions-grid-section__title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #432818;
+  margin-bottom: 24px;
+}
+
+.regions-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+}
+
+.regions-card {
+  background: #F3E9DC;
+  border-radius: 16px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 4px 16px rgba(67, 40, 24, 0.04);
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.regions-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(67, 40, 24, 0.08);
+}
+
+.regions-card__media {
+  position: relative;
+  height: 200px;
+  overflow: hidden;
+  background: #E8DFD4;
+}
+
+.regions-card__media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.4s ease;
+}
+
+.regions-card:hover .regions-card__media img {
+  transform: scale(1.05);
+}
+
+.regions-card__badge {
+  display: none !important;
+}
+
+.regions-card__body {
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.regions-card__body h4 {
+  font-size: 17px;
+  font-weight: 700;
+  color: #432818;
+  margin-bottom: 8px;
+}
+
+.regions-card__body p {
+  font-size: 13px;
+  line-height: 1.6;
+  color: #6B5E54;
+  flex: 1;
+  margin-bottom: 18px;
+}
+
+.regions-card__btn {
+  display: block;
+  text-align: center;
+  padding: 10px 16px;
+  border: 1.5px solid #432818;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #432818;
+  text-decoration: none;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.regions-card__btn:hover {
+  background: #432818;
+  color: #fff;
+}
+
+/* ===== All centers list ===== */
+.regions-all__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 14px;
+}
+
+.regions-all__item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 14px;
+  background: #fff;
+  border: 1px solid #E8DFD4;
+  border-radius: 14px;
+  text-decoration: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.regions-all__item:hover {
+  border-color: #BB9457;
+  box-shadow: 0 4px 12px rgba(67, 40, 24, 0.06);
+}
+
+.regions-all__thumb {
+  width: 52px;
+  height: 52px;
+  border-radius: 12px;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: #F3E9DC;
+}
+
+.regions-all__thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.regions-all__item strong {
+  display: block;
+  font-size: 14px;
+  font-weight: 700;
+  color: #432818;
+}
+
+.regions-all__item span {
+  font-size: 12px;
+  color: #6B5E54;
+}
+
+/* ===== Responsive ===== */
+@media (max-width: 960px) {
+  .regions-featured {
+    grid-template-columns: 1fr;
+    padding: 32px 28px;
+    gap: 24px;
+  }
+
+  .regions-featured__map-frame {
+    max-width: 100%;
+    aspect-ratio: 16 / 10;
+  }
+
+  .regions-cards {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .regions-page {
+    padding: 32px 0 56px;
+  }
+
+  .regions-page__header {
+    margin-bottom: 32px;
+  }
+
+  .regions-featured {
+    padding: 24px 18px;
+    border-radius: 18px;
+    margin-bottom: 40px;
+  }
+
+  .regions-featured__content h2 {
+    font-size: 24px;
+  }
+
+  .regions-featured__map-frame {
+    aspect-ratio: 4 / 3;
+  }
+
+  .regions-cards {
+    grid-template-columns: 1fr;
+  }
+
+  .regions-card__media {
+    height: 180px;
+  }
+
+  .regions-all__grid {
+    grid-template-columns: 1fr;
+  }
+}

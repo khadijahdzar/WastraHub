@@ -10,14 +10,12 @@ vendor/
 .env.backup
 .env.production
 .env.local
-.env.*.local
 
 # Database
 *.sql
 
 # Laravel
 backend/storage/*.key
-backend/storage/pail
 backend/storage/logs/*
 backend/storage/framework/cache/*
 backend/storage/framework/sessions/*
@@ -36,14 +34,4 @@ frontend/build/
 Thumbs.db
 .idea/
 .vscode/
-.nova/
-.zed/
-.cursor/
-.phpunit.cache
-.phpunit.result.cache
-.phpactor.json
-_ide_helper.php
-Homestead.json
-Homestead.yaml
-auth.json
 *.log

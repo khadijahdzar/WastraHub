@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCart } from "../context/CartContext";
 import { useAuth } from "../context/AuthContext";
@@ -6,24 +6,10 @@ import { useLanguage } from "../context/LanguageContext";
 import { formatPrice } from "../data/products";
 import { markPurchased } from "../utils/reviews";
 import { createOrder, buildPaymentMethod } from "../services/orderService";
+import { BANKS, EWALLETS } from "../config/paymentMethods";
 import Button from "../components/common/Button";
+import CheckoutProgress from "../components/checkout/CheckoutProgress";
 import "./checkout.css";
-
-const EWALLETS = [
-  { id: "dana", name: "DANA", color: "#118EE9" },
-  { id: "gopay", name: "GoPay", color: "#00AED6" },
-  { id: "ovo", name: "OVO", color: "#4C3494" },
-  { id: "shopeepay", name: "ShopeePay", color: "#EE4D2D" },
-  { id: "brimo", name: "BRImo", color: "#0057A0" },
-];
-
-const BANKS = [
-  { id: "bca", name: "BCA", color: "#0060AF", account: "1234567890" },
-  { id: "bni", name: "BNI", color: "#F15A22", account: "0987654321" },
-  { id: "mandiri", name: "Mandiri", color: "#003D79", account: "1122334455" },
-  { id: "bri", name: "BRI", color: "#0057A0", account: "5566778899" },
-  { id: "cimb", name: "CIMB Niaga", color: "#EE1C25", account: "6677889900" },
-];
 
 export default function Checkout() {
   const { t, lang } = useLanguage();
@@ -43,6 +29,12 @@ export default function Checkout() {
     ewallet: "",
     bank: "",
   });
+
+  useEffect(() => {
+    if (items.length === 0) {
+      navigate("/cart", { replace: true });
+    }
+  }, [items.length, navigate]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -132,9 +124,13 @@ export default function Checkout() {
           total_amount: subtotal,
           items: items.map((i) => ({
             product_id: i.id,
+            name: i.name,
             quantity: i.quantity,
             price: i.price,
             subtotal: i.price * i.quantity,
+            image: i.images?.[0] || i.image || null,
+            region: i.region || "",
+            category: i.category || "",
           })),
         };
 
@@ -142,12 +138,50 @@ export default function Checkout() {
         console.info("[checkout] order created via", source, order);
 
         clearCart();
-        // arahkan ke detail jika ada id, else list
-        if (order?.id) {
-          navigate(`/orders/${order.id}`);
-        } else {
-          navigate("/orders");
+        const orderId = order?.id || order?.order_number || `WH-${Date.now()}`;
+        try {
+          const key = "wastrahub_user_orders";
+          const prev = JSON.parse(localStorage.getItem(key) || "[]");
+          const newOrder = {
+            id: String(orderId),
+            date: new Date().toLocaleDateString("id-ID", {
+              day: "numeric",
+              month: "long",
+              year: "numeric",
+            }),
+            status: "belum-dibayar",
+            total: subtotal,
+            paymentDeadline: "24 jam ke depan",
+            paymentMethod:
+              form.payment === "ewallet"
+                ? `E-Wallet ${form.ewallet}`
+                : form.payment === "cod"
+                ? "COD"
+                : `Transfer Bank ${(form.bank || "").toUpperCase()}`,
+            bankName: (form.bank || "bca").toUpperCase(),
+            bankAccount: "1234567890",
+            items: items.map((i) => ({
+              name: i.name,
+              qty: i.quantity,
+              price: i.price,
+              image: i.images?.[0] || i.image || null,
+              region: i.region || "",
+            })),
+          };
+          const next = [
+            newOrder,
+            ...(Array.isArray(prev)
+              ? prev.filter((o) => String(o.id) !== String(newOrder.id))
+              : []),
+          ];
+          localStorage.setItem(key, JSON.stringify(next));
+        } catch (e) {
+          console.warn("persist order failed", e);
         }
+        navigate(`/orders?newOrder=${encodeURIComponent(orderId)}`, {
+          replace: true,
+          state: { newOrder: order },
+        });
       } catch (err) {
         console.error(err);
         setError(
@@ -192,6 +226,7 @@ export default function Checkout() {
   return (
     <div className="checkout-page">
       <div className="container">
+        <CheckoutProgress />
         <h1>{t("checkout_title")}</h1>
         <form onSubmit={handleSubmit} className="checkout__grid" noValidate>
           <div className="checkout__form">
@@ -312,7 +347,7 @@ export default function Checkout() {
                           className="ewallet-card__badge"
                           style={{ background: b.color }}
                         >
-                          {b.name.charAt(0)}
+                          <img src={b.logo} alt="" />
                         </span>
                         <span className="ewallet-card__name">{b.name}</span>
                       </label>
@@ -366,7 +401,7 @@ export default function Checkout() {
                           className="ewallet-card__badge"
                           style={{ background: w.color }}
                         >
-                          {w.name.charAt(0)}
+                          <img src={w.logo} alt="" />
                         </span>
                         <span className="ewallet-card__name">{w.name}</span>
                       </label>

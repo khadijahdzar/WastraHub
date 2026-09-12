@@ -1,6 +1,10 @@
+import { useState, useEffect } from "react";
 import { useParams, Link, Navigate } from "react-router-dom";
 import { useLanguage } from "../context/LanguageContext";
 import Badge from "../components/common/Badge";
+import Toast from "../components/common/Toast";
+import PaymentInstructionModal from "../components/common/PaymentInstructionModal";
+import { fetchOrder, payOrder } from "../services/orderService";
 import "./orders.css";
 
 const formatRupiah = (n) =>
@@ -8,96 +12,92 @@ const formatRupiah = (n) =>
     style: "currency",
     currency: "IDR",
     minimumFractionDigits: 0,
-  }).format(n);
+  }).format(Number(n) || 0);
 
-// Same dummy pool as MyOrders (simplified lookup)
-const ALL_ORDERS = [
-  {
-    id: "WH-20260809-001",
-    date: "9 Agustus 2026",
-    status: "belum-dibayar",
-    total: 750000,
-    subtotal: 750000,
-    shipping: 0,
-    paymentDeadline: "10 Agustus 2026, 23:59",
-    payment: "Transfer Bank",
-    address: "Jl. Kemang Raya No. 12, Jakarta Selatan",
-    items: [
-      { name: "Batik Parang Tulis Premium", qty: 1, price: 750000, image: "/images/products/placeholder.jpg", region: "Yogyakarta" },
-    ],
-  },
-  {
-    id: "WH-20260808-002",
-    date: "8 Agustus 2026",
-    status: "belum-dibayar",
-    total: 625000,
-    subtotal: 625000,
-    shipping: 0,
-    paymentDeadline: "9 Agustus 2026, 23:59",
-    payment: "GoPay",
-    address: "Jl. Sudirman No. 45, Jakarta Pusat",
-    items: [
-      { name: "Batik Kawung Cap Elegan", qty: 1, price: 350000, image: "/images/products/placeholder.jpg", region: "Pekalongan" },
-      { name: "Batik Sekar Jagad Printing", qty: 1, price: 275000, image: "/images/products/placeholder.jpg", region: "Cirebon" },
-    ],
-  },
-  {
-    id: "WH-20260807-003",
-    date: "7 Agustus 2026",
-    status: "belum-dikirim",
-    total: 550000,
-    subtotal: 550000,
-    shipping: 0,
-    payment: "OVO",
-    address: "Jl. Gatot Subroto No. 8, Jakarta Selatan",
-    items: [
-      { name: "Batik Truntum Kombinasi", qty: 1, price: 550000, image: "/images/products/placeholder.jpg", region: "Solo" },
-    ],
-  },
-  {
-    id: "WH-20260805-004",
-    date: "5 Agustus 2026",
-    status: "belum-dikirim",
-    total: 1100000,
-    subtotal: 1100000,
-    shipping: 0,
-    payment: "Transfer Bank",
-    address: "Jl. Asia Afrika No. 3, Bandung",
-    items: [
-      { name: "Batik Parang Tulis Premium", qty: 1, price: 750000, image: "/images/products/placeholder.jpg", region: "Yogyakarta" },
-      { name: "Batik Kawung Cap Elegan", qty: 1, price: 350000, image: "/images/products/placeholder.jpg", region: "Pekalongan" },
-    ],
-  },
-  {
-    id: "WH-20260803-005",
-    date: "3 Agustus 2026",
-    status: "belum-diterima",
-    total: 720000,
-    subtotal: 720000,
-    shipping: 0,
-    tracking: "JNE - 882910384756",
-    payment: "DANA",
-    address: "Jl. Kemang Raya No. 12, Jakarta Selatan",
-    items: [
-      { name: "Batik Mega Mendung Cirebon", qty: 1, price: 720000, image: "/images/products/placeholder.jpg", region: "Cirebon" },
-    ],
-  },
-];
+const formatDate = (d) => {
+  if (!d) return "—";
+  try {
+    return new Date(d).toLocaleDateString("id-ID", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  } catch {
+    return d;
+  }
+};
 
 const statusMap = {
   "belum-dibayar": { labelKey: "tab_unpaid", variant: "new" },
   "belum-dikirim": { labelKey: "tab_unshipped", variant: "secondary" },
   "belum-diterima": { labelKey: "tab_undelivered", variant: "primary" },
   selesai: { labelKey: "tab_done", variant: "success" },
-  batal: { labelKey: "tab_cancel", variant: "default" },
+  batal: { labelKey: "status_cancelled", variant: "default" },
 };
 
 export default function OrderDetail() {
   const { id } = useParams();
   const { t } = useLanguage();
-  const order = ALL_ORDERS.find((o) => o.id === id);
+  const [order, setOrder] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
+  const [paying, setPaying] = useState(false);
+  const [toast, setToast] = useState({ open: false, message: "", type: "success" });
+  const [payModalOpen, setPayModalOpen] = useState(false);
 
-  if (!order) {
+  const showToast = (message, type = "success") => {
+    setToast({ open: true, message, type });
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setNotFound(false);
+    (async () => {
+      try {
+        const res = await fetchOrder(id);
+        if (!cancelled) setOrder(res.data);
+      } catch {
+        if (!cancelled) setNotFound(true);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
+
+  const openPayModal = () => {
+    if (!order || paying) return;
+    setPayModalOpen(true);
+  };
+
+  const confirmPay = async () => {
+    if (!order || paying) return;
+    setPaying(true);
+    try {
+      const res = await payOrder(order.id);
+      setOrder({ ...order, ...res.data, status: "belum-dikirim", statusRaw: "paid" });
+      setPayModalOpen(false);
+      showToast(
+        t("orders_pay_success") ||
+          "Pembayaran berhasil! Pesanan Anda sedang diproses untuk dikirim."
+      );
+    } catch (err) {
+      showToast(err.message || "Gagal memproses pembayaran", "error");
+    } finally {
+      setPaying(false);
+    }
+  };
+
+  if (loading) {
+    return null;
+  }
+
+  if (notFound || !order) {
     return <Navigate to="/orders" replace />;
   }
 
@@ -112,7 +112,7 @@ export default function OrderDetail() {
         <div className="order-detail__header">
           <div>
             <h1>{t("orders_detail")}</h1>
-            <p className="order-detail__id">{order.id}</p>
+            <p className="order-detail__id">{order.code}</p>
           </div>
           <Badge variant={st.variant}>{t(st.labelKey)}</Badge>
         </div>
@@ -121,12 +121,18 @@ export default function OrderDetail() {
           <section className="order-detail__panel">
             <h2>{t("orders_items")}</h2>
             <ul className="order-detail__items">
-              {order.items.map((item, i) => (
+              {(order.items || []).map((item, i) => (
                 <li key={i} className="order-detail__item">
-                  <img src={item.image} alt="" onError={(e) => { e.currentTarget.src = "/images/products/placeholder.jpg"; }} />
+                  <img
+                    src={item.image}
+                    alt=""
+                    onError={(e) => {
+                      e.currentTarget.src = "/images/products/placeholder.jpg";
+                    }}
+                  />
                   <div>
                     <strong>{item.name}</strong>
-                    <span>{item.region}</span>
+                    <span>{item.region || "—"}</span>
                     <span>
                       {item.qty} × {formatRupiah(item.price)}
                     </span>
@@ -145,7 +151,7 @@ export default function OrderDetail() {
               <dl className="order-detail__dl">
                 <div>
                   <dt>{t("orders_date")}</dt>
-                  <dd>{order.date}</dd>
+                  <dd>{formatDate(order.date)}</dd>
                 </div>
                 <div>
                   <dt>{t("orders_status")}</dt>
@@ -177,11 +183,55 @@ export default function OrderDetail() {
             </section>
             <section className="order-detail__panel">
               <h2>{t("orders_address")}</h2>
+              {order.customer_name && (
+                <p style={{ fontWeight: 600, marginBottom: 4 }}>{order.customer_name}</p>
+              )}
+              {order.phone && (
+                <p style={{ fontSize: "0.875rem", color: "var(--text-muted)", marginBottom: 4 }}>
+                  {order.phone}
+                </p>
+              )}
               <p>{order.address || "—"}</p>
             </section>
+
+            <div className="order-detail__actions">
+              {order.status === "belum-dibayar" && (
+                <button
+                  type="button"
+                  className="order-btn order-btn--primary order-btn--block"
+                  onClick={openPayModal}
+                  disabled={paying}
+                  aria-busy={paying}
+                >
+                  {t("orders_pay_now")}
+                </button>
+              )}
+              {order.status === "belum-diterima" && (
+                <button type="button" className="order-btn order-btn--primary order-btn--block">
+                  {t("orders_received")}
+                </button>
+              )}
+              <Link to="/orders" className="order-btn order-btn--ghost order-btn--block">
+                {t("orders_back")}
+              </Link>
+            </div>
           </aside>
         </div>
       </div>
+
+      <PaymentInstructionModal
+        open={payModalOpen}
+        order={order}
+        onClose={() => !paying && setPayModalOpen(false)}
+        onConfirm={confirmPay}
+        loading={paying}
+      />
+      <Toast
+        open={toast.open}
+        message={toast.message}
+        type={toast.type}
+        onClose={() => setToast((s) => ({ ...s, open: false }))}
+      />
     </div>
   );
 }

@@ -4,12 +4,21 @@ import { Star } from "lucide-react";
 import { useLanguage } from "../../context/LanguageContext";
 import Button from "./Button";
 import { useAuth } from "../../context/AuthContext";
-import {
-  getReviews,
-  addReview,
-  hasUserReviewed,
-} from "../../utils/reviews";
+import api from "../../api/axios";
+import { getReviews } from "../../utils/reviews";
 import "./product-reviews.css";
+
+function normalizeReview(review) {
+  return {
+    id: review.id,
+    userId: review.user_id ?? review.userId,
+    userName:
+      review.user?.name || review.user_name || review.userName || "Pengguna",
+    rating: Number(review.rating) || 0,
+    comment: review.review || review.comment || "",
+    createdAt: review.created_at || review.createdAt || null,
+  };
+}
 
 function Stars({ value, size = 16, interactive = false, onChange }) {
   const [hover, setHover] = useState(0);
@@ -64,10 +73,26 @@ export default function ProductReviews({ productId }) {
 
   const userId = user?.id ?? user?.email ?? null;
   const alreadyReviewed =
-    isAuthenticated && userId && hasUserReviewed(productId, userId);
+    isAuthenticated &&
+    userId &&
+    reviews.some((review) => String(review.userId) === String(userId));
 
   useEffect(() => {
-    setReviews(getReviews(productId));
+    let active = true;
+
+    const loadReviews = async () => {
+      try {
+        const response = await api.get(`/products/${productId}/reviews`);
+        const serverReviews = Array.isArray(response.data?.data)
+          ? response.data.data.map(normalizeReview)
+          : [];
+        if (active) setReviews(serverReviews.length > 0 ? serverReviews : getReviews(productId));
+      } catch {
+        if (active) setReviews(getReviews(productId));
+      }
+    };
+
+    loadReviews();
     setSuccess(false);
     setError("");
     setComment("");
@@ -83,7 +108,7 @@ export default function ProductReviews({ productId }) {
         ) / 10
       : null;
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
     setSuccess(false);
@@ -113,17 +138,26 @@ export default function ProductReviews({ productId }) {
       return;
     }
 
-    addReview(productId, {
-      userId,
-      userName: user?.name || user?.email || "Pengguna",
-      rating,
-      comment: comment.trim(),
-    });
-
-    setReviews(getReviews(productId));
-    setComment("");
-    setRating(5);
-    setSuccess(true);
+    try {
+      const response = await api.post("/reviews", {
+        product_id: Number(productId),
+        rating,
+        review: comment.trim(),
+      });
+      const created = response.data?.data || response.data?.review;
+      if (created) setReviews((previous) => [normalizeReview(created), ...previous]);
+      window.dispatchEvent(new CustomEvent("wastrahub:review-created"));
+      setComment("");
+      setRating(5);
+      setSuccess(true);
+    } catch (err) {
+      setError(
+        err.response?.data?.message ||
+          (lang === "en"
+            ? "The review could not be submitted."
+            : "Ulasan belum berhasil dikirim.")
+      );
+    }
   };
 
   return (
@@ -164,10 +198,10 @@ export default function ProductReviews({ productId }) {
         {/* Sudah login + belum review → FORM MUNCUL */}
         {isAuthenticated && !alreadyReviewed && (
           <form className="product-reviews__form" onSubmit={handleSubmit}>
-            <h3>{lang === "en" ? "Write a review" : "Tulis Ulasanmu"}</h3>
+            <h3>{t("review_write_title")}</h3>
 
             <div className="product-reviews__rating-row">
-              <span>Rating</span>
+              <span>{t("review_rating_label")}</span>
               <Stars
                 value={rating}
                 size={22}
@@ -178,11 +212,7 @@ export default function ProductReviews({ productId }) {
 
             <textarea
               rows={4}
-              placeholder={
-                lang === "en"
-                  ? "Share your experience with this product..."
-                  : "Ceritakan pengalamanmu memakai produk ini..."
-              }
+placeholder={t("review_placeholder")}
               value={comment}
               onChange={(e) => setComment(e.target.value)}
               maxLength={500}
@@ -193,16 +223,14 @@ export default function ProductReviews({ productId }) {
                 {comment.length}/500
               </span>
               <Button type="submit" variant="primary" size="md">
-                {lang === "en" ? "Submit review" : "Kirim Ulasan"}
+                {t("review_submit_btn")}
               </Button>
             </div>
 
             {error && <p className="product-reviews__error">{error}</p>}
             {success && (
               <p className="product-reviews__success">
-                {lang === "en"
-                  ? "Review submitted. Thank you!"
-                  : "Ulasan berhasil dikirim. Terima kasih!"}
+{t("review_success")}
               </p>
             )}
           </form>
@@ -212,8 +240,7 @@ export default function ProductReviews({ productId }) {
       <div className="product-reviews__list">
         {reviews.length === 0 ? (
           <p className="product-reviews__empty">
-            {t("product_no_reviews") || "Belum ada ulasan"}{" "}
-            {lang === "en" ? "for this product." : "untuk produk ini."}
+{t("product_no_reviews")} {t("review_for_product")}
           </p>
         ) : (
           reviews.map((r) => (

@@ -548,4 +548,17 @@
   .pd-trust {
     grid-template-columns: repeat(2, 1fr);
   }
+  .pd-btn--buy {
+  background: #26170c;
+  color: #fcf9f8;
+  border: none;
+  flex: 1;
+}
+.pd-btn--buy:hover:not(:disabled) {
+  background: #3d2b1f;
+}
+.pd-btn--buy:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
 }

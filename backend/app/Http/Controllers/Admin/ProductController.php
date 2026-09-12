@@ -28,7 +28,7 @@ class ProductController extends Controller
     {
         $data = $request->validate([
             'category_id' => 'required|exists:categories,id',
-            'region_id'   => 'required|exists:regions,id',
+            'region_id'   => 'nullable|exists:regions,id',
             'name'        => 'required|string|max:255',
             'slug'        => 'nullable|string|unique:products,slug',
             'description' => 'nullable|string',

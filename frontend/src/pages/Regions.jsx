@@ -75,11 +75,15 @@ export default function Regions() {
               ))}
             </div>
 
-            <button type="button" className="regions-featured__cta-btn" onClick={scrollToAll}>
-              <Button variant="primary" size="lg" type="button">
-                {t("regions_see_all")}
-              </Button>
-            </button>
+            <Button
+              variant="primary"
+              size="lg"
+              type="button"
+              className="regions-featured__cta-btn"
+              onClick={scrollToAll}
+            >
+              {t("regions_see_all")}
+            </Button>
           </div>
 
           <div className="regions-featured__map">

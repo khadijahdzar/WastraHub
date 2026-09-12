@@ -25,11 +25,22 @@ import AdminOrders from "./admin/pages/Orders";
 import AdminReviews from "./admin/pages/Reviews";
 import AdminReports from "./admin/pages/Reports";
 
+/** Cek session admin dari localStorage (tanpa import tambahan) */
+function readAdminSession() {
+  try {
+    const raw = localStorage.getItem("wastrahub_admin_user");
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
 function AdminRoute({ children }) {
-  const { isAdmin, loading } = useAuth();
   const location = useLocation();
-  if (loading) return null;
-  if (!isAdmin) {
+  const admin = readAdminSession();
+  const ok = admin && (admin.role === "admin" || admin.role === "superadmin");
+  if (!ok) {
     return <Navigate to="/admin/login" state={{ from: location }} replace />;
   }
   return children;

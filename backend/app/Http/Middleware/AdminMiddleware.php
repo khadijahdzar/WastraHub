@@ -12,9 +12,9 @@ class AdminMiddleware
     {
         $user = $request->user();
 
-        if (! $user || $user->role !== 'admin') {
+        if (!$user || !in_array($user->role ?? '', ['admin', 'superadmin'], true)) {
             return response()->json([
-                'message' => 'Akses hanya untuk admin',
+                'message' => 'Unauthorized. Admin only.',
             ], 403);
         }
 

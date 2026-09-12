@@ -16,6 +16,7 @@ export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
   const from = location.state?.from?.pathname || location.state?.from || "/";
+  const infoMessage = location.state?.message || "";
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -23,8 +24,8 @@ export default function Login() {
     setLoading(true);
     try {
       const { data } = await loginRequest(email, password);
-      localStorage.setItem("wastrahub_token", data.token);
-      login(data.user);
+      login(data.user, data.token);
+      localStorage.setItem("wastrahub_user_token", data.token);
       navigate(typeof from === "string" ? from : "/", { replace: true });
     } catch (err) {
       setError(err.message || t("login_fail"));
@@ -37,11 +38,31 @@ export default function Login() {
     <div className="auth-page">
       <div className="auth-card">
         <Link to="/" className="auth-logo">
-          <img src="/images/logos/wastrahub-logo-nav.png" alt="WastraHub" className="auth-logo-img" />
+          <img
+            src="/images/logos/wastrahub-logo-full.png"
+            alt="WastraHub"
+            className="auth-logo-img"
+          />
         </Link>
         <h1>{t("login_title")}</h1>
         <p className="auth-subtitle">{t("login_sub")}</p>
 
+        {infoMessage && !error && (
+          <div
+            className="auth-info"
+            style={{
+              background: "#fef3c7",
+              color: "#92400e",
+              padding: "12px 14px",
+              borderRadius: 10,
+              fontSize: 14,
+              marginBottom: 16,
+              lineHeight: 1.45,
+            }}
+          >
+            {infoMessage}
+          </div>
+        )}
         {error && <div className="auth-error">{error}</div>}
 
         <form onSubmit={handleSubmit}>
@@ -66,7 +87,7 @@ export default function Login() {
             />
           </div>
           <Button type="submit" variant="primary" size="lg" fullWidth disabled={loading}>
-            {loading ? t("processing") : t("sign_in")}
+            {t("sign_in")}
           </Button>
         </form>
 

@@ -15,7 +15,13 @@ export default function Cart() {
 
   const handleCheckout = () => {
     if (!isAuthenticated) {
-      navigate("/login", { state: { from: "/checkout" } });
+      navigate("/login", {
+        state: {
+          from: "/checkout",
+          message:
+            "Silakan masuk atau daftar akun terlebih dahulu untuk melanjutkan pembayaran.",
+        },
+      });
       return;
     }
     navigate("/checkout");

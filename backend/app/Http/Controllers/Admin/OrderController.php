@@ -67,4 +67,21 @@ class OrderController extends Controller
         ]);
     }
 
+    public function destroy($id)
+    {
+        $order = Order::findOrFail($id);
+
+        if (!in_array($order->status, ['completed', 'cancelled'], true)) {
+            return response()->json([
+                'message' => 'Hanya pesanan selesai atau dibatalkan yang dapat dihapus.',
+            ], 422);
+        }
+
+        $order->delete();
+
+        return response()->json([
+            'message' => 'Riwayat pesanan berhasil dihapus.',
+        ]);
+    }
+
 }

@@ -484,3 +484,17 @@
 }
 .order-detail__dl dt { color: var(--text-muted); }
 .order-detail__total-row { font-weight: 700; font-size: 1rem; border-bottom: none !important; }
+
+.spin {
+  animation: wh-spin 0.8s linear infinite;
+}
+@keyframes wh-spin {
+  to { transform: rotate(360deg); }
+}
+.order-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+.order-btn .spin {
+  vertical-align: middle;
+}

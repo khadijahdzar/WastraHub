@@ -39,17 +39,8 @@ class OrderController extends Controller
 
     /**
      * POST /api/orders  (auth:sanctum)
-     *
-     * Body:
-     * {
-     *   customer_name, phone, address,
-     *   payment_method, total_amount,
-     *   items: [{ product_id, quantity, price, subtotal }]
-     * }
-     *
-     * Membuat: orders + order_details + payments (1 transaksi DB)
      */
-    public function checkout(Request $request)
+    public function store(Request $request)
     {
         $data = $request->validate([
             'customer_name' => 'required|string|max:255',
@@ -67,7 +58,6 @@ class OrderController extends Controller
         $user = $request->user();
 
         $order = DB::transaction(function () use ($data, $user) {
-            // Cek stok & hitung ulang total dari server (lebih aman)
             $computedTotal = 0;
             $lineItems = [];
 
@@ -78,7 +68,7 @@ class OrderController extends Controller
                     abort(422, "Stok tidak cukup untuk produk: {$product->name}");
                 }
 
-                $price = (float) $product->price; // pakai harga DB, bukan client
+                $price = (float) $product->price;
                 $qty = (int) $item['quantity'];
                 $subtotal = $price * $qty;
                 $computedTotal += $subtotal;
@@ -112,22 +102,15 @@ class OrderController extends Controller
                     'subtotal' => $line['subtotal'],
                 ]);
 
-                // Kurangi stok
                 $line['product']->decrement('stock', $line['quantity']);
             }
 
-            // Payment record
-            $method = $data['payment_method'];
-            $payStatus = 'pending';
-            // COD tetap pending sampai barang diterima
-            // Transfer / e-wallet: pending sampai dikonfirmasi admin (atau gateway)
-
             Payment::create([
                 'order_id' => $order->id,
-                'payment_method' => $method,
+                'payment_method' => $data['payment_method'],
                 'transaction_id' => null,
                 'amount' => $computedTotal,
-                'status' => $payStatus,
+                'status' => 'pending',
                 'paid_at' => null,
             ]);
 
@@ -138,5 +121,50 @@ class OrderController extends Controller
             'message' => 'Pesanan berhasil dibuat',
             'data' => $order,
         ], 201);
+    }
+
+    /**
+     * POST /api/orders/{id}/pay  (auth:sanctum)
+     */
+    public function pay(Request $request, $id)
+    {
+        $order = Order::with('payment')
+            ->where('user_id', $request->user()->id)
+            ->findOrFail($id);
+
+        if (!in_array($order->status, ['pending', 'unpaid'], true)) {
+            return response()->json([
+                'message' => 'Pesanan ini tidak dapat dibayar (status: ' . $order->status . ')',
+            ], 422);
+        }
+
+        DB::transaction(function () use ($order) {
+            $order->update(['status' => 'paid']);
+
+            if ($order->payment) {
+                $order->payment->update([
+                    'status' => 'paid',
+                    'paid_at' => now(),
+                    'transaction_id' => $order->payment->transaction_id
+                        ?: 'SIM-' . strtoupper(Str::random(12)),
+                ]);
+            } else {
+                Payment::create([
+                    'order_id' => $order->id,
+                    'payment_method' => 'transfer',
+                    'transaction_id' => 'SIM-' . strtoupper(Str::random(12)),
+                    'amount' => $order->total_amount,
+                    'status' => 'paid',
+                    'paid_at' => now(),
+                ]);
+            }
+        });
+
+        $order = $order->fresh()->load(['details.product', 'payment']);
+
+        return response()->json([
+            'message' => 'Pembayaran berhasil dikonfirmasi',
+            'data' => $order,
+        ]);
     }
 }

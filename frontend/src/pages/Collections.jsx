@@ -28,7 +28,6 @@ export default function Collections() {
   const [categories, setCategories] = useState([]);
   const [regions, setRegions] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [source, setSource] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -103,7 +102,6 @@ export default function Collections() {
         else if (sort === "rating") list.sort((a, b) => (b.rating || 0) - (a.rating || 0));
       }
       setProducts(list);
-      setSource(res.source);
       setLoading(false);
     })();
     return () => {
@@ -218,10 +216,7 @@ export default function Collections() {
         <div className="collections__main">
           <div className="collections__toolbar">
             <span className="collections__count">
-              {loading ? "..." : products.length} {t("collections_found")}
-              {source === "dummy" && (
-                <span style={{ opacity: 0.5, marginLeft: 8, fontSize: "0.85em" }}>(offline)</span>
-              )}
+              {products.length} {t("collections_found")}
             </span>
             <select
               value={sort}
@@ -237,22 +232,20 @@ export default function Collections() {
             </select>
           </div>
 
-          {loading ? (
-            <p style={{ padding: "2rem", opacity: 0.6 }}>Memuat produk...</p>
-          ) : products.length === 0 ? (
+          {!loading && products.length === 0 ? (
             <div className="collections__empty">
               <p>{t("collections_empty")}</p>
               <button type="button" onClick={clearFilters}>
                 {t("collections_reset")}
               </button>
             </div>
-          ) : (
+          ) : !loading ? (
             <div className="product-grid product-grid--collections">
               {products.map((p) => (
                 <ProductCard key={p.id} product={p} />
               ))}
             </div>
-          )}
+          ) : null}
         </div>
       </div>
     </div>

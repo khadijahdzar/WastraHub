@@ -64,8 +64,10 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Orders
     Route::get('/orders', [OrderController::class, 'index']);
-    Route::post('/orders/checkout', [OrderController::class, 'checkout']);
+    Route::post('/orders', [OrderController::class, 'store']);              // ← WAJIB ditambah
+    Route::post('/orders/checkout', [OrderController::class, 'checkout']);  // sudah ada (boleh tetap)
     Route::get('/orders/{id}', [OrderController::class, 'show']);
+    Route::post('/orders/{id}/pay', [OrderController::class, 'pay']);
 
     // Payments
     Route::post('/payments', [PaymentController::class, 'store']);
@@ -88,16 +90,17 @@ Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function ()
         return response()->json(['message' => 'Admin berhasil masuk']);
     });
 
-    // Dashboard
+    // Dashboard & Stats
     Route::get('/dashboard', [DashboardController::class, 'index']);
+    Route::get('/stats', [DashboardController::class, 'index']);
 
     // Products CRUD
     Route::apiResource('products', AdminProductController::class);
 
-    // Orders management
     Route::get('/orders', [AdminOrderController::class, 'index']);
     Route::get('/orders/{id}', [AdminOrderController::class, 'show']);
     Route::patch('/orders/{id}/status', [AdminOrderController::class, 'updateStatus']);
+    Route::delete('/orders/{id}', [AdminOrderController::class, 'destroy']);
 
     // Customers
     Route::get('/customers', [CustomerController::class, 'index']);

@@ -7,44 +7,79 @@ use Illuminate\Http\Request;
 
 class ProductController extends Controller
 {
-    /**
-     * GET /api/products
-     * Public list — hanya produk active
-     */
     public function index(Request $request)
     {
-        $query = Product::with(['category', 'region'])
+        $q = Product::with(['category', 'region'])
             ->where('status', 'active');
 
-        // Optional filters
         if ($request->filled('category_id')) {
-            $query->where('category_id', $request->category_id);
+            $q->where('category_id', $request->integer('category_id'));
         }
         if ($request->filled('region_id')) {
-            $query->where('region_id', $request->region_id);
+            $q->where('region_id', $request->integer('region_id'));
         }
         if ($request->filled('type')) {
-            $query->where('type', $request->type);
+            $q->where('type', $request->string('type'));
         }
-        if ($request->filled('search')) {
-            $q = $request->search;
-            $query->where(function ($builder) use ($q) {
-                $builder->where('name', 'like', "%{$q}%")
-                    ->orWhere('description', 'like', "%{$q}%")
-                    ->orWhere('material', 'like', "%{$q}%");
+        if ($request->filled('q') || $request->filled('search')) {
+            $term = $request->input('q', $request->input('search'));
+            $q->where(function ($qq) use ($term) {
+                $qq->where('name', 'like', "%{$term}%")
+                    ->orWhere('description', 'like', "%{$term}%");
+            });
+        }
+        if ($request->boolean('featured')) {
+            $q->where(function ($qq) {
+                $qq->where('is_featured', true)->orWhere('is_featured', 1);
             });
         }
 
-        return response()->json($query->latest()->get());
+        if ($request->filled('per_page')) {
+            $perPage = min(max($request->integer('per_page'), 1), 200);
+            $paginator = $q->latest()->paginate($perPage);
+            return response()->json([
+                'data' => $paginator->items(),
+                'meta' => [
+                    'total' => $paginator->total(),
+                    'per_page' => $paginator->perPage(),
+                    'current_page' => $paginator->currentPage(),
+                    'last_page' => $paginator->lastPage(),
+                ],
+            ]);
+        }
+
+        $products = $q->latest()->get();
+
+        return response()->json([
+            'data' => $products,
+            'meta' => ['total' => $products->count()],
+        ]);
     }
 
-    /**
-     * GET /api/products/{product}
-     */
-    public function show(Product $product)
+    public function featured()
     {
-        return response()->json(
-            $product->load(['category', 'region'])
-        );
+        $products = Product::with(['category', 'region'])
+            ->where('status', 'active')
+            ->where(function ($q) {
+                $q->where('is_featured', true)->orWhere('is_featured', 1);
+            })
+            ->latest()
+            ->get();
+
+        if ($products->isEmpty()) {
+            $products = Product::with(['category', 'region'])
+                ->where('status', 'active')
+                ->latest()
+                ->take(8)
+                ->get();
+        }
+
+        return response()->json(['data' => $products]);
+    }
+
+    public function show($id)
+    {
+        $product = Product::with(['category', 'region'])->findOrFail($id);
+        return response()->json(['data' => $product]);
     }
 }

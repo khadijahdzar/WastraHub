@@ -52,13 +52,17 @@ export async function loginRequest(email, password) {
 
     if (offline) {
       console.warn("[authService] API offline, pakai login dummy");
+      const isAdminEmail =
+        /^admin@/i.test(email) ||
+        email === "admin@wastrahub.com" ||
+        email === "admin@batikartisan.com";
       return {
         data: {
           user: {
-            id: 1,
-            name: "Pengguna WastraHub",
+            id: isAdminEmail ? 1 : Date.now(),
+            name: isAdminEmail ? "Admin WastraHub" : "Pengguna WastraHub",
             email,
-            role: "user",
+            role: isAdminEmail ? "admin" : "user",
             avatar: null,
           },
           token: "dummy-token-" + Date.now(),

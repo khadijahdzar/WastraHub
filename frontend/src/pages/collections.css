@@ -9,6 +9,24 @@
   text-align: center;
 }
 
+.collections__header::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(243, 233, 220, 0.45)
+    rgba(250, 246, 241, 0.40)
+  );
+  z-index: 0;
+  pointer-events: none;
+}
+
+.collections__header > * {
+  position: relative;
+  z-index: 1;
+}
+
 .collections__header h1 {
   font-size: 36px;
   font-weight: 800;

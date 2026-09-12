@@ -82,7 +82,7 @@ export default function Register() {
             />
           </div>
           <Button type="submit" variant="primary" size="lg" fullWidth disabled={loading}>
-            {loading ? t("processing") : t("sign_up")}
+            {t("sign_up")}
           </Button>
         </form>
 

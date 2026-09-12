@@ -15,7 +15,8 @@ class ReportController extends Controller
     // ==========================
     public function index()
     {
-        $totalRevenue = Order::where('status', 'paid')->sum('total_amount');
+        $totalRevenue = (float) Order::whereIn('status', ['paid', 'processing', 'shipped', 'completed'])
+            ->sum('total_amount');
 
         $totalOrders = Order::count();
 
@@ -43,9 +44,18 @@ class ReportController extends Controller
             ->take(5)
             ->get();
 
+        $dailySales = Order::whereIn('status', ['paid', 'processing', 'shipped', 'completed'])
+            ->selectRaw('DATE(created_at) as date, COUNT(*) as orders, SUM(total_amount) as revenue')
+            ->groupBy('date')
+            ->orderByDesc('date')
+            ->take(15)
+            ->get();
+
         return response()->json([
             'total_revenue'      => $totalRevenue,
+            'revenue'            => $totalRevenue,
             'total_orders'       => $totalOrders,
+            'orders'             => $totalOrders,
             'pending_orders'     => $pendingOrders,
             'processing_orders'  => $processingOrders,
             'shipped_orders'     => $shippedOrders,
@@ -53,7 +63,9 @@ class ReportController extends Controller
             'cancelled_orders'   => $cancelledOrders,
             'total_products'     => $totalProducts,
             'total_customers'    => $totalCustomers,
+            'customers'          => $totalCustomers,
             'best_selling_products' => $bestSellingProducts,
+            'daily_sales'        => $dailySales,
         ]);
     }
 }

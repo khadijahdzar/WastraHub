@@ -1,0 +1,103 @@
+/* ---------- Skeleton Shimmer ---------- */
+@keyframes wastra-shimmer {
+  0% { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    #EDE6DC 0%,
+    #F8F4EE 40%,
+    #EDE6DC 80%
+  );
+  background-size: 800px 100%;
+  animation: wastra-shimmer 1.4s ease-in-out infinite;
+  border-radius: 8px;
+}
+
+.skeleton--text {
+  height: 14px;
+  margin-bottom: 8px;
+}
+
+.skeleton--title {
+  height: 28px;
+  width: 60%;
+  margin-bottom: 16px;
+}
+
+.skeleton--img {
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  border-radius: 12px;
+}
+
+.skeleton--btn {
+  height: 48px;
+  width: 160px;
+  border-radius: 999px;
+}
+
+/* ---------- Micro-interactions (Tailwind-like) ---------- */
+.ui-transition {
+  transition: all 0.25s ease;
+}
+
+.ui-hover-lift:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 28px rgba(67, 40, 24, 0.12);
+}
+
+.ui-hover-scale:hover {
+  transform: scale(1.03);
+}
+
+.ui-active-press:active {
+  transform: scale(0.97);
+}
+
+.ui-btn-primary {
+  transition: all 0.2s ease;
+}
+.ui-btn-primary:hover {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+}
+.ui-btn-primary:active {
+  transform: scale(0.97);
+}
+
+/* Product card soft lift */
+.product-card {
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+.product-card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 16px 40px rgba(67, 40, 24, 0.1);
+}
+
+/* WhatsApp button */
+.wa-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 20px;
+  border-radius: 999px;
+  background: #25D366;
+  color: #fff;
+  font-weight: 600;
+  font-size: 14px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  text-decoration: none;
+}
+.wa-btn:hover {
+  background: #1ebe57;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(37, 211, 102, 0.35);
+}
+.wa-btn:active {
+  transform: scale(0.97);
+}

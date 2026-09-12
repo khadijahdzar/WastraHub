@@ -76,7 +76,7 @@ class RegionSeeder extends Seeder
         ];
 
         foreach ($regions as $region) {
-            Region::create($region);
+            Region::updateOrCreate(['slug' => $region['slug']], $region);
         }
     }
 }

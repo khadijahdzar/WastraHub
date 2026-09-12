@@ -24,6 +24,7 @@ import AdminProducts from "./admin/pages/Products";
 import AdminOrders from "./admin/pages/Orders";
 import AdminReviews from "./admin/pages/Reviews";
 import AdminReports from "./admin/pages/Reports";
+import AdminVouchers from "./admin/pages/Vouchers";
 
 /** Cek session admin dari localStorage (tanpa import tambahan) */
 function readAdminSession() {
@@ -188,6 +189,7 @@ function App() {
         <Route path="products" element={<AdminProducts />} />
         <Route path="orders" element={<AdminOrders />} />
         <Route path="reviews" element={<AdminReviews />} />
+        <Route path="vouchers" element={<AdminVouchers />} />
         <Route path="reports" element={<AdminReports />} />
       </Route>
 

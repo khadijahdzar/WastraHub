@@ -20,16 +20,26 @@ export default function NotificationDropdown({
       >
         <Bell size={20} />
         {unread > 0 && (
-          <span className="admin-notif__dot">{unread > 9 ? "9+" : unread}</span>
+          <span className="admin-notif__dot">
+            {unread > 9 ? "9+" : unread}
+          </span>
         )}
       </button>
 
       {open && (
-        <div className="admin-notif__panel" role="dialog" aria-label="Daftar notifikasi">
+        <div
+          className="admin-notif__panel"
+          role="dialog"
+          aria-label="Daftar notifikasi"
+        >
           <div className="admin-notif__head">
             <strong>Notifikasi</strong>
             {unread > 0 && (
-              <button type="button" className="admin-notif__mark" onClick={onMarkAllRead}>
+              <button
+                type="button"
+                className="admin-notif__mark"
+                onClick={onMarkAllRead}
+              >
                 Tandai dibaca
               </button>
             )}

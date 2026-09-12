@@ -11,6 +11,7 @@ use App\Http\Controllers\OrderController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\ReviewController;
 use App\Http\Controllers\RegionController;
+use App\Http\Controllers\AiChatController;
 
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\ProductController as AdminProductController;
@@ -38,6 +39,7 @@ Route::get('/regions/{region}', [RegionController::class, 'show']);
 // Auth
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
+Route::post('/ai/chat', AiChatController::class)->middleware('throttle:10,1');
 
 // Public product reviews
 Route::get('/products/{id}/reviews', [ReviewController::class, 'productReviews']);
@@ -83,7 +85,7 @@ Route::middleware('auth:sanctum')->group(function () {
 // ADMIN ROUTES
 // ==========================
 
-Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function () {
+Route::middleware(['admin.api', 'admin'])->prefix('admin')->group(function () {
 
     // Test
     Route::get('/test', function () {

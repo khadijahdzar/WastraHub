@@ -18,6 +18,13 @@ export default function Checkout() {
   const navigate = useNavigate();
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [voucherDiscount] = useState(() => {
+    try {
+      return Number(JSON.parse(localStorage.getItem("wastrahub_applied_voucher") || "{}").discount) || 0;
+    } catch {
+      return 0;
+    }
+  });
   const [form, setForm] = useState({
     name: "",
     phone: "",
@@ -115,13 +122,15 @@ export default function Checkout() {
           .filter(Boolean)
           .join(", ");
 
+        const finalTotal = Math.max(0, subtotal - voucherDiscount);
         const payload = {
           customer_name: form.name.trim(),
           phone: form.phone.trim(),
           address: fullAddress,
           courier: form.courier,
           payment_method: buildPaymentMethod(form),
-          total_amount: subtotal,
+          total_amount: finalTotal,
+          discount_amount: voucherDiscount,
           items: items.map((i) => ({
             product_id: i.id,
             name: i.name,
@@ -138,19 +147,26 @@ export default function Checkout() {
         console.info("[checkout] order created via", source, order);
 
         clearCart();
+        localStorage.removeItem("wastrahub_applied_voucher");
         const orderId = order?.id || order?.order_number || `WH-${Date.now()}`;
+        
+        // Buat tanggal hari ini & estimasi tiba aman (mencegah Invalid Date)
+        const todayObj = new Date();
+        const estStartObj = new Date();
+        estStartObj.setDate(todayObj.getDate() + 2);
+        const estEndObj = new Date();
+        estEndObj.setDate(todayObj.getDate() + 4);
+
         try {
           const key = "wastrahub_user_orders";
           const prev = JSON.parse(localStorage.getItem(key) || "[]");
           const newOrder = {
             id: String(orderId),
-            date: new Date().toLocaleDateString("id-ID", {
-              day: "numeric",
-              month: "long",
-              year: "numeric",
-            }),
+            date: todayObj.toISOString(), // Menggunakan ISO string agar valid diparsing
+            estimatedStart: estStartObj.toISOString(),
+            estimatedEnd: estEndObj.toISOString(),
             status: "belum-dibayar",
-            total: subtotal,
+            total: finalTotal,
             paymentDeadline: "24 jam ke depan",
             paymentMethod:
               form.payment === "ewallet"

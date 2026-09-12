@@ -3,11 +3,13 @@ import { Heart } from "lucide-react";
 import Badge from "../common/Badge";
 import ImageWithFallback from "../common/ImageWithFallback";
 import { formatPrice } from "../../data/products";
+import { resolveProductImage } from "../../utils/productData";
 import { useLanguage } from "../../context/LanguageContext";
 import "./product-card.css";
 
 export default function ProductCard({ product }) {
   const { t } = useLanguage();
+
   if (!product) return null;
 
   const {
@@ -17,20 +19,27 @@ export default function ProductCard({ product }) {
     originalPrice,
     region,
     category,
-    images,
     isNew,
     rating,
   } = product;
 
-  const imageSrc = images?.[0] || "";
+  // Memanggil utility resolver gambar dengan fallback default batik
+  const rawImageSrc = resolveProductImage(product);
+  const fallbackImage = "/images/categories/batikmodern.webp"; // Placeholder default yang elegan
+  const imageSrc = rawImageSrc || fallbackImage;
 
   return (
     <article className="product-card">
-      <Link to={`/product/${id}`} className="product-card__media">
+      <Link
+        to={`/product/${id}`}
+        state={{ product }}
+        className="product-card__media"
+      >
         <div className="product-card__image-wrap">
           <ImageWithFallback
             src={imageSrc}
-            alt={name}
+            fallbackSrc={fallbackImage}
+            alt={name ?? "Produk WastraHub"}
             loading="eager"
             fetchPriority="high"
           />
@@ -55,19 +64,23 @@ export default function ProductCard({ product }) {
 
       <div className="product-card__body">
         <div className="product-card__meta">
-          <span className="product-card__region">{region}</span>
+          <span className="product-card__region">{region ?? "-"}</span>
           <span className="product-card__dot">·</span>
-          <span className="product-card__category">{category}</span>
+          <span className="product-card__category">{category ?? "-"}</span>
         </div>
 
-        <Link to={`/product/${id}`} className="product-card__title">
-          {name}
+        <Link
+          to={`/product/${id}`}
+          state={{ product }}
+          className="product-card__title"
+        >
+          {name ?? "Nama Produk Tidak Tersedia"}
         </Link>
 
         <div className="product-card__footer">
           <div className="product-card__price">
             <span className="product-card__price-current">
-              {formatPrice(price)}
+              {formatPrice(price ?? 0)}
             </span>
             {originalPrice && (
               <span className="product-card__price-original">

@@ -1,5 +1,11 @@
 import { useState, useEffect, useCallback } from "react";
-import { NavLink, Outlet, useNavigate, useLocation, Link } from "react-router-dom";
+import {
+  NavLink,
+  Outlet,
+  useNavigate,
+  useLocation,
+  Link,
+} from "react-router-dom";
 import {
   LayoutDashboard,
   Package,
@@ -10,6 +16,7 @@ import {
   Menu,
   X,
   Bell,
+  TicketPercent,
 } from "lucide-react";
 import { clearAdminSession, getAdminSession } from "../context/AuthContext";
 import { useLanguage } from "../context/LanguageContext";
@@ -42,34 +49,67 @@ export default function AdminLayout() {
     try {
       const res = await adminFetchOrders();
       const list = res.data || [];
-      const paid = list.filter((o) =>
-        ["paid", "processing"].includes(String(o.status || "").toLowerCase())
+      const needShip = list.filter((o) =>
+        ["pending", "unpaid", "paid", "processing"].includes(
+          String(o.status || "").toLowerCase()
+        )
       );
-      setNeedShipCount(paid.length);
+      setNeedShipCount(needShip.length);
 
-      if (paid.length) {
-        const existing = readLocalNotifs();
-        let changed = false;
-        for (const o of paid) {
-          const key = String(o.id);
-          if (!existing.some((n) => String(n.order_id) === key && n.type === "order_paid")) {
-            existing.unshift({
-              id: Date.now() + Math.random(),
-              type: "order_paid",
-              order_id: o.id,
-              order_number: o.order_number,
-              message: `Pesanan ${o.order_number || o.id} sudah dibayar — perlu dikirim`,
-              created_at: o.updated_at || o.created_at || new Date().toISOString(),
-              read: false,
-            });
-            changed = true;
-          }
-        }
-        if (changed) {
-          localStorage.setItem("wastrahub_admin_notifs", JSON.stringify(existing.slice(0, 50)));
-          setNotifs(existing.slice(0, 50));
+      const existing = readLocalNotifs();
+      const liveIds = new Set(list.map((o) => String(o.id)));
+      const liveNums = new Set(
+        list.map((o) => String(o.order_number || "")).filter(Boolean)
+      );
+
+      // Prune notif yang order-nya sudah tidak ada di data terkini
+      let next = existing.filter((n) => {
+        const oid = String(n.order_id || "");
+        const onum = String(n.order_number || "");
+        return liveIds.has(oid) || (onum && liveNums.has(onum));
+      });
+
+      let changed = next.length !== existing.length;
+
+      for (const o of needShip) {
+        const key = String(o.id);
+        const status = String(o.status || "pending").toLowerCase();
+        const type = ["paid", "processing"].includes(status)
+          ? "order_paid"
+          : "order_new";
+        if (
+          !next.some((n) => String(n.order_id) === key && n.type === type)
+        ) {
+          next.unshift({
+            id: Date.now() + Math.random(),
+            type,
+            order_id: o.id,
+            order_number: o.order_number,
+            message:
+              type === "order_paid"
+                ? `Pesanan ${o.order_number || o.id} sudah dibayar — perlu dikirim`
+                : `Pesanan baru ${o.order_number || o.id} masuk`,
+            created_at:
+              o.updated_at || o.created_at || new Date().toISOString(),
+            read: false,
+          });
+          changed = true;
         }
       }
+
+      if (changed) {
+        next = next.slice(0, 50);
+        localStorage.setItem(
+          "wastrahub_admin_notifs",
+          JSON.stringify(next)
+        );
+      }
+      setNotifs(next);
+
+      // Beritahu halaman Orders agar re-fetch
+      window.dispatchEvent(
+        new CustomEvent("wastrahub:orders-updated", { detail: { list } })
+      );
     } catch {
       /* ignore */
     }
@@ -77,17 +117,28 @@ export default function AdminLayout() {
 
   useEffect(() => {
     pollPaidOrders();
-    const interval = setInterval(pollPaidOrders, 15000);
+    const interval = setInterval(pollPaidOrders, 12000);
     const onPaid = () => {
       refreshNotifs();
       pollPaidOrders();
     };
+    const onCreated = () => {
+      refreshNotifs();
+      pollPaidOrders();
+    };
+    const echo = window.Echo;
+    const channel = echo?.private?.("admin-orders");
+    channel?.listen?.(".order.created", onCreated);
     window.addEventListener("wastrahub:order-paid", onPaid);
+    window.addEventListener("wastrahub:order-created", onCreated);
     window.addEventListener("storage", onPaid);
     return () => {
       clearInterval(interval);
       window.removeEventListener("wastrahub:order-paid", onPaid);
+      window.removeEventListener("wastrahub:order-created", onCreated);
       window.removeEventListener("storage", onPaid);
+      channel?.stopListening?.(".order.created", onCreated);
+      echo?.leave?.("private-admin-orders");
     };
   }, [pollPaidOrders, refreshNotifs]);
 
@@ -100,7 +151,12 @@ export default function AdminLayout() {
   };
 
   const NAV = [
-    { to: "/admin", end: true, label: t("admin_dashboard"), icon: LayoutDashboard },
+    {
+      to: "/admin",
+      end: true,
+      label: t("admin_dashboard"),
+      icon: LayoutDashboard,
+    },
     { to: "/admin/products", label: t("admin_products"), icon: Package },
     {
       to: "/admin/orders",
@@ -109,6 +165,7 @@ export default function AdminLayout() {
       badge: needShipCount,
     },
     { to: "/admin/reviews", label: t("admin_reviews"), icon: MessageSquare },
+    { to: "/admin/vouchers", label: "Voucher", icon: TicketPercent },
     { to: "/admin/reports", label: t("admin_reports"), icon: BarChart3 },
   ];
 
@@ -119,7 +176,10 @@ export default function AdminLayout() {
 
   return (
     <div className="admin-shell">
-      <div className={`admin-overlay ${open ? "open" : ""}`} onClick={() => setOpen(false)} />
+      <div
+        className={`admin-overlay ${open ? "open" : ""}`}
+        onClick={() => setOpen(false)}
+      />
       <aside className={`admin-sidebar ${open ? "open" : ""}`}>
         <div className="admin-sidebar__brand">
           <a href="/">WastraHub</a>
@@ -138,13 +198,19 @@ export default function AdminLayout() {
             >
               <Icon strokeWidth={1.75} />
               <span style={{ flex: 1 }}>{label}</span>
-              {badge > 0 && <span className="admin-nav-badge">{badge}</span>}
+              {badge > 0 && (
+                <span className="admin-nav-badge">{badge}</span>
+              )}
             </NavLink>
           ))}
         </nav>
         <div className="admin-sidebar__footer">
           <p className="admin-name">{user?.name || "Admin"}</p>
-          <button type="button" className="admin-sidebar__logout" onClick={handleLogout}>
+          <button
+            type="button"
+            className="admin-sidebar__logout"
+            onClick={handleLogout}
+          >
             <LogOut size={18} /> {t("admin_logout")}
           </button>
         </div>
@@ -152,12 +218,18 @@ export default function AdminLayout() {
       <div className="admin-main">
         <header className="admin-header">
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <button type="button" className="admin-menu-btn" onClick={() => setOpen((v) => !v)}>
+            <button
+              type="button"
+              className="admin-menu-btn"
+              onClick={() => setOpen((v) => !v)}
+            >
               {open ? <X size={22} /> : <Menu size={22} />}
             </button>
             <h1 className="font-display">
               {NAV.find((n) =>
-                n.end ? location.pathname === n.to : location.pathname.startsWith(n.to)
+                n.end
+                  ? location.pathname === n.to
+                  : location.pathname.startsWith(n.to)
               )?.label || "Admin"}
             </h1>
           </div>
@@ -175,14 +247,22 @@ export default function AdminLayout() {
                 aria-label="Notifikasi"
               >
                 <Bell size={20} />
-                {unread > 0 && <span className="admin-notif__dot">{unread > 9 ? "9+" : unread}</span>}
+                {unread > 0 && (
+                  <span className="admin-notif__dot">
+                    {unread > 9 ? "9+" : unread}
+                  </span>
+                )}
               </button>
               {notifOpen && (
                 <div className="admin-notif__panel">
                   <div className="admin-notif__head">
                     <strong>Notifikasi</strong>
                     {unread > 0 && (
-                      <button type="button" className="admin-notif__mark" onClick={markAllRead}>
+                      <button
+                        type="button"
+                        className="admin-notif__mark"
+                        onClick={markAllRead}
+                      >
                         Tandai dibaca
                       </button>
                     )}
@@ -193,17 +273,23 @@ export default function AdminLayout() {
                     <ul className="admin-notif__list">
                       {notifs.slice(0, 10).map((n) => (
                         <li key={n.id} className={n.read ? "" : "unread"}>
-                          <Link to="/admin/orders" onClick={() => setNotifOpen(false)}>
+                          <Link
+                            to="/admin/orders"
+                            onClick={() => setNotifOpen(false)}
+                          >
                             {n.message}
                           </Link>
                           <span className="admin-notif__time">
                             {n.created_at
-                              ? new Date(n.created_at).toLocaleString("id-ID", {
-                                  day: "numeric",
-                                  month: "short",
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                })
+                              ? new Date(n.created_at).toLocaleString(
+                                  "id-ID",
+                                  {
+                                    day: "numeric",
+                                    month: "short",
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                  }
+                                )
                               : ""}
                           </span>
                         </li>

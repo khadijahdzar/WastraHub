@@ -24,6 +24,9 @@ export default function Login() {
     setLoading(true);
     try {
       const { data } = await loginRequest(email, password);
+      if (data.user?.role === "admin" || data.user?.role === "superadmin") {
+        throw new Error("Akun admin hanya dapat masuk melalui halaman login admin.");
+      }
       login(data.user, data.token);
       localStorage.setItem("wastrahub_user_token", data.token);
       navigate(typeof from === "string" ? from : "/", { replace: true });
@@ -73,6 +76,7 @@ export default function Login() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="nama@email.com"
+              autoComplete="username"
               required
             />
           </div>
@@ -83,6 +87,7 @@ export default function Login() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
+              autoComplete="current-password"
               required
             />
           </div>

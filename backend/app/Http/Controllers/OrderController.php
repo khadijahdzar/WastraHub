@@ -6,6 +6,7 @@ use App\Models\Order;
 use App\Models\OrderDetail;
 use App\Models\Payment;
 use App\Models\Product;
+use App\Events\OrderCreated;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -48,6 +49,7 @@ class OrderController extends Controller
             'address' => 'required|string',
             'payment_method' => 'required|string|max:255',
             'total_amount' => 'required|numeric|min:0',
+            'discount_amount' => 'nullable|numeric|min:0',
             'items' => 'required|array|min:1',
             'items.*.product_id' => 'required|integer|exists:products,id',
             'items.*.quantity' => 'required|integer|min:1',
@@ -81,12 +83,15 @@ class OrderController extends Controller
                 ];
             }
 
+            $discount = min((float) ($data['discount_amount'] ?? 0), $computedTotal);
+            $finalTotal = $computedTotal - $discount;
+
             $orderNumber = 'WH-' . strtoupper(Str::random(8)) . '-' . now()->format('ymd');
 
             $order = Order::create([
                 'user_id' => $user->id,
                 'order_number' => $orderNumber,
-                'total_amount' => $computedTotal,
+                'total_amount' => $finalTotal,
                 'status' => 'pending',
                 'customer_name' => $data['customer_name'],
                 'phone' => $data['phone'],
@@ -109,13 +114,15 @@ class OrderController extends Controller
                 'order_id' => $order->id,
                 'payment_method' => $data['payment_method'],
                 'transaction_id' => null,
-                'amount' => $computedTotal,
+                'amount' => $finalTotal,
                 'status' => 'pending',
                 'paid_at' => null,
             ]);
 
             return $order->load(['details.product', 'payment']);
         });
+
+        OrderCreated::dispatch($order);
 
         return response()->json([
             'message' => 'Pesanan berhasil dibuat',

@@ -17,6 +17,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // Bearer token only — do not enable statefulApi() to avoid CSRF mismatch on SPA
         $middleware->alias([
             'admin' => \App\Http\Middleware\AdminMiddleware::class,
+            'admin.api' => \App\Http\Middleware\AdminApiAuth::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

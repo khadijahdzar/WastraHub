@@ -31,11 +31,47 @@ function toError(err, fallback) {
   return e;
 }
 
+const LOCAL_USERS_KEY = "wastrahub_registered_users";
+
+function readLocalUsers() {
+  try {
+    const users = JSON.parse(localStorage.getItem(LOCAL_USERS_KEY) || "[]");
+    return Array.isArray(users) ? users : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeLocalUsers(users) {
+  localStorage.setItem(LOCAL_USERS_KEY, JSON.stringify(users));
+}
+
+async function hashPassword(password) {
+  if (!globalThis.crypto?.subtle || typeof TextEncoder === "undefined") {
+    throw new Error("Browser tidak mendukung penyimpanan akun offline yang aman");
+  }
+  const data = new TextEncoder().encode(password);
+  const digest = await globalThis.crypto.subtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(digest))
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+function userFromLocalRecord(record) {
+  return {
+    id: record.id,
+    name: record.name,
+    email: record.email,
+    role: "user",
+    avatar: null,
+  };
+}
+
 /**
  * Login ke Laravel (POST /api/login).
- * Fallback dummy jika backend offline — agar UI tetap bisa dicoba.
+ * Saat API offline, hanya akun yang pernah didaftarkan yang boleh login.
  */
-export async function loginRequest(email, password) {
+export async function loginRequest(email, password, options = {}) {
   if (!email || !password) {
     throw new Error("Email dan password wajib diisi");
   }
@@ -45,26 +81,29 @@ export async function loginRequest(email, password) {
     const { user, token } = extractAuthPayload(res);
     return { data: { user, token }, source: "api" };
   } catch (err) {
+    if (err.response?.status === 401 || err.response?.status === 422) {
+      throw new Error("Akun belum terdaftar atau password salah. Silakan daftar dahulu.");
+    }
     const offline =
       !err.response ||
       err.code === "ERR_NETWORK" ||
       err.message?.includes("Network Error");
 
     if (offline) {
-      console.warn("[authService] API offline, pakai login dummy");
-      const isAdminEmail =
-        /^admin@/i.test(email) ||
-        email === "admin@wastrahub.com" ||
-        email === "admin@batikartisan.com";
+      const normalizedEmail = String(email).trim().toLowerCase();
+      if (options.role === "admin") {
+        throw new Error("Server admin tidak tersedia. Jalankan backend lalu coba lagi.");
+      }
+      const passwordHash = await hashPassword(password);
+      const registered = readLocalUsers().find(
+        (user) => user.email === normalizedEmail && user.passwordHash === passwordHash
+      );
+      if (!registered) {
+        throw new Error("Akun belum terdaftar atau password salah. Silakan daftar terlebih dahulu.");
+      }
       return {
         data: {
-          user: {
-            id: isAdminEmail ? 1 : Date.now(),
-            name: isAdminEmail ? "Admin WastraHub" : "Pengguna WastraHub",
-            email,
-            role: isAdminEmail ? "admin" : "user",
-            avatar: null,
-          },
+          user: userFromLocalRecord(registered),
           token: "dummy-token-" + Date.now(),
         },
         source: "dummy",
@@ -96,16 +135,21 @@ export async function registerRequest(payload) {
       err.message?.includes("Network Error");
 
     if (offline) {
-      console.warn("[authService] API offline, pakai register dummy");
+      const normalizedEmail = String(payload.email || "").trim().toLowerCase();
+      const users = readLocalUsers();
+      if (users.some((user) => user.email === normalizedEmail)) {
+        throw new Error("Email sudah terdaftar");
+      }
+      const record = {
+        id: Date.now(),
+        name: String(payload.name || "").trim(),
+        email: normalizedEmail,
+        passwordHash: await hashPassword(payload.password),
+      };
+      writeLocalUsers([...users, record]);
       return {
         data: {
-          user: {
-            id: Date.now(),
-            name: payload.name,
-            email: payload.email,
-            role: "user",
-            avatar: null,
-          },
+          user: userFromLocalRecord(record),
           token: "dummy-token-" + Date.now(),
         },
         source: "dummy",

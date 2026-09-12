@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { useParams, Link, useNavigate } from "react-router-dom";
+import { useParams, Link, useNavigate, useLocation } from "react-router-dom";
 import {
   Minus,
   Plus,
@@ -40,20 +40,11 @@ const TABS = [
 export default function ProductDetail() {
   const { t, lang } = useLanguage();
   const { id } = useParams();
-  const localProduct = getProductById(id);
-  const [product, setProduct] = useState(localProduct || null);
-  const [related, setRelated] = useState(() =>
-    localProduct
-      ? localProducts
-          .filter(
-            (item) =>
-              item.id !== localProduct.id &&
-              (item.region === localProduct.region || item.category === localProduct.category)
-          )
-          .slice(0, 4)
-      : []
-  );
-  const [loading, setLoading] = useState(!localProduct);
+  const location = useLocation();
+  const selectedProduct = location.state?.product || null;
+  const [product, setProduct] = useState(null);
+  const [related, setRelated] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [activeImage, setActiveImage] = useState(0);
   const [qty, setQty] = useState(1);
   const [activeTab, setActiveTab] = useState("description");
@@ -66,29 +57,19 @@ export default function ProductDetail() {
   const navigate = useNavigate();
 
   useEffect(() => {
+    const controller = new AbortController();
     let cancelled = false;
-    const immediateProduct = getProductById(id);
-    if (immediateProduct) {
-      setProduct(immediateProduct);
-      setRelated(
-        localProducts
-          .filter(
-            (item) =>
-              item.id !== immediateProduct.id &&
-              (item.region === immediateProduct.region || item.category === immediateProduct.category)
-          )
-          .slice(0, 4)
-      );
-      setLoading(false);
-    } else {
-      setLoading(true);
-    }
+    setProduct(selectedProduct || null);
+    setRelated([]);
+    setLoading(true);
     setActiveImage(0);
     (async () => {
       try {
         const [res, all] = await Promise.all([
-          fetchProduct(id),
-          fetchProducts({}),
+          selectedProduct
+            ? Promise.resolve({ data: selectedProduct })
+            : fetchProduct(id, { signal: controller.signal }),
+          fetchProducts({ signal: controller.signal }),
         ]);
         if (cancelled) return;
         setProduct(res.data);
@@ -98,19 +79,37 @@ export default function ProductDetail() {
             (p.region === res.data.region || p.category === res.data.category)
         );
         setRelated(list.slice(0, 4));
-      } catch {
-        if (!cancelled && !immediateProduct) setProduct(null);
+      } catch (error) {
+        if (!cancelled && error.name !== "CanceledError" && error.name !== "AbortError") {
+          if (!selectedProduct) {
+            const fallback = getProductById(id);
+            setProduct(fallback || null);
+          }
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
     })();
     return () => {
       cancelled = true;
+      controller.abort();
     };
-  }, [id]);
+  }, [id, selectedProduct]);
 
   if (loading) {
-    return null;
+    return (
+      <div className="product-detail product-detail--loading" aria-busy="true">
+        <div className="container product-detail-skeleton">
+          <div className="product-detail-skeleton__image" />
+          <div className="product-detail-skeleton__content">
+            <div className="product-detail-skeleton__line product-detail-skeleton__line--short" />
+            <div className="product-detail-skeleton__line product-detail-skeleton__line--title" />
+            <div className="product-detail-skeleton__line" />
+            <div className="product-detail-skeleton__line product-detail-skeleton__line--price" />
+          </div>
+        </div>
+      </div>
+    );
   }
 
   if (!product) {

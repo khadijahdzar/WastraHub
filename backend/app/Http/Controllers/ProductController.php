@@ -7,6 +7,11 @@ use Illuminate\Http\Request;
 
 class ProductController extends Controller
 {
+    /**
+     * GET /api/products
+     * Default: SEMUA produk active (tanpa silent limit).
+     * Optional: ?per_page=12 untuk pagination.
+     */
     public function index(Request $request)
     {
         $q = Product::with(['category', 'region'])
@@ -37,17 +42,19 @@ class ProductController extends Controller
         if ($request->filled('per_page')) {
             $perPage = min(max($request->integer('per_page'), 1), 200);
             $paginator = $q->latest()->paginate($perPage);
+
             return response()->json([
                 'data' => $paginator->items(),
                 'meta' => [
-                    'total' => $paginator->total(),
-                    'per_page' => $paginator->perPage(),
+                    'total'        => $paginator->total(),
+                    'per_page'     => $paginator->perPage(),
                     'current_page' => $paginator->currentPage(),
-                    'last_page' => $paginator->lastPage(),
+                    'last_page'    => $paginator->lastPage(),
                 ],
             ]);
         }
 
+        // Default: return ALL active products
         $products = $q->latest()->get();
 
         return response()->json([
@@ -80,6 +87,7 @@ class ProductController extends Controller
     public function show($id)
     {
         $product = Product::with(['category', 'region'])->findOrFail($id);
+
         return response()->json(['data' => $product]);
     }
 }

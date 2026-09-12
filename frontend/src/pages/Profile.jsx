@@ -1,12 +1,15 @@
 import { useState, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useLanguage } from "../context/LanguageContext";
+import { logoutRequest } from "../services/authService";
 import Button from "../components/common/Button";
 import "./profile.css";
 
 export default function Profile() {
-  const { user, updateProfile } = useAuth();
+  const { user, updateProfile, logout } = useAuth();
   const { t } = useLanguage();
+  const navigate = useNavigate();
   const fileRef = useRef(null);
   const [form, setForm] = useState({
     name: user?.name || "",
@@ -48,6 +51,15 @@ export default function Profile() {
     updateProfile({ ...form, avatar: avatar || null });
     setSaved(true);
     setTimeout(() => setSaved(false), 2500);
+  };
+
+  const handleLogout = async () => {
+    try {
+      await logoutRequest();
+    } finally {
+      logout();
+      navigate("/login", { replace: true });
+    }
   };
 
   const initial = (form.name || "U").charAt(0).toUpperCase();
@@ -102,9 +114,14 @@ export default function Profile() {
             <input name="phone" value={form.phone} onChange={handleChange} />
           </div>
           {saved && <div className="profile-saved">{t("profile_saved")}</div>}
-          <Button type="submit" variant="primary">
-            {t("profile_save")}
-          </Button>
+          <div className="profile-actions">
+            <Button type="submit" variant="primary">
+              {t("profile_save")}
+            </Button>
+            <button type="button" className="profile-logout-btn" onClick={handleLogout}>
+              {t("admin_logout") || "Keluar"}
+            </button>
+          </div>
         </form>
       </div>
     </div>

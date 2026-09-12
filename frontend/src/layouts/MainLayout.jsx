@@ -2,6 +2,7 @@ import Navbar from "../components/layout/Navbar";
 import Footer from "../components/layout/Footer";
 import DemoModeBanner from "../components/common/DemoModeBanner";
 import PageTransition from "../components/common/PageTransition";
+import WastraChat from "../components/common/WastraChat";
 import { useCart } from "../context/CartContext";
 import "./main-layout.css";
 
@@ -16,6 +17,7 @@ export default function MainLayout({ children }) {
         <PageTransition>{children}</PageTransition>
       </main>
       <Footer />
+      <WastraChat />
     </div>
   );
 }

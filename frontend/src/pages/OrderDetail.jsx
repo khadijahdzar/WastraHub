@@ -17,7 +17,9 @@ const formatRupiah = (n) =>
 const formatDate = (d) => {
   if (!d) return "—";
   try {
-    return new Date(d).toLocaleDateString("id-ID", {
+    const parsed = new Date(d);
+    if (isNaN(parsed.getTime())) return d;
+    return parsed.toLocaleDateString("id-ID", {
       day: "numeric",
       month: "long",
       year: "numeric",
@@ -36,6 +38,13 @@ const statusMap = {
   selesai: { labelKey: "tab_done", variant: "success" },
   batal: { labelKey: "status_cancelled", variant: "default" },
 };
+
+const trackingSteps = [
+  ["belum-dibayar", "Pesanan dibuat"],
+  ["belum-dikirim", "Sedang diproses"],
+  ["belum-diterima", "Dalam pengiriman"],
+  ["selesai", "Pesanan diterima"],
+];
 
 export default function OrderDetail() {
   const { id } = useParams();
@@ -58,9 +67,33 @@ export default function OrderDetail() {
     (async () => {
       try {
         const res = await fetchOrder(id);
-        if (!cancelled) setOrder(res.data);
+        if (!cancelled) {
+          let fetchedData = res.data;
+          // Fallback ke localStorage jika API belum mengembalikan format tanggal lengkap
+          if (fetchedData && (!fetchedData.estimatedStart || !fetchedData.estimatedEnd)) {
+            const localOrders = JSON.parse(localStorage.getItem("wastrahub_user_orders") || "[]");
+            const foundLocal = localOrders.find((o) => String(o.id) === String(id));
+            if (foundLocal) {
+              fetchedData = { ...foundLocal, ...fetchedData };
+            }
+          }
+          setOrder(fetchedData);
+        }
       } catch {
-        if (!cancelled) setNotFound(true);
+        if (!cancelled) {
+          // Fallback murni ke localStorage untuk testing lokal jika API gagal
+          try {
+            const localOrders = JSON.parse(localStorage.getItem("wastrahub_user_orders") || "[]");
+            const foundLocal = localOrders.find((o) => String(o.id) === String(id));
+            if (foundLocal) {
+              setOrder(foundLocal);
+            } else {
+              setNotFound(true);
+            }
+          } catch {
+            setNotFound(true);
+          }
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -80,7 +113,7 @@ export default function OrderDetail() {
     setPaying(true);
     try {
       const res = await payOrder(order.id);
-      setOrder({ ...order, ...res.data, status: "belum-dikirim", statusRaw: "paid" });
+      setOrder({ ...order, ...(res?.data || {}), status: "belum-dikirim", statusRaw: "paid" });
       setPayModalOpen(false);
       showToast(
         t("orders_pay_success") ||
@@ -102,6 +135,18 @@ export default function OrderDetail() {
   }
 
   const st = statusMap[order.status] || statusMap["belum-dibayar"];
+  const currentStep = Math.max(
+    0,
+    trackingSteps.findIndex(([status]) => status === order.status)
+  );
+
+  // Fungsi format estimasi yang aman dari "Invalid Date"
+  const formatEstimate = (value) => {
+    if (!value) return "Segera";
+    const dateObj = new Date(value);
+    if (isNaN(dateObj.getTime())) return value; // Jika berupa teks biasa atau invalid, tampilkan apa adanya
+    return dateObj.toLocaleDateString("id-ID", { day: "numeric", month: "short" });
+  };
 
   return (
     <div className="orders-page order-detail-page">
@@ -112,7 +157,7 @@ export default function OrderDetail() {
         <div className="order-detail__header">
           <div>
             <h1>{t("orders_detail")}</h1>
-            <p className="order-detail__id">{order.code}</p>
+            <p className="order-detail__id">{order.code || order.id}</p>
           </div>
           <Badge variant={st.variant}>{t(st.labelKey)}</Badge>
         </div>
@@ -134,11 +179,11 @@ export default function OrderDetail() {
                     <strong>{item.name}</strong>
                     <span>{item.region || "—"}</span>
                     <span>
-                      {item.qty} × {formatRupiah(item.price)}
+                      {item.qty || item.quantity} × {formatRupiah(item.price)}
                     </span>
                   </div>
                   <div className="order-detail__item-total">
-                    {formatRupiah(item.qty * item.price)}
+                    {formatRupiah((item.qty || item.quantity) * item.price)}
                   </div>
                 </li>
               ))}
@@ -148,10 +193,25 @@ export default function OrderDetail() {
           <aside className="order-detail__side">
             <section className="order-detail__panel">
               <h2>{t("orders_summary")}</h2>
+              <div className="order-tracking">
+                <p className="order-tracking__estimate">
+                  Estimasi tiba: {formatEstimate(order.estimatedStart)} - {formatEstimate(order.estimatedEnd)}
+                </p>
+                <div className="order-tracking__timeline">
+                  {trackingSteps.map(([status, label], index) => (
+                    <div key={status} className={`order-tracking__step ${index <= currentStep ? "is-done" : ""}`}>
+                      {label}
+                    </div>
+                  ))}
+                </div>
+                <p className="order-tracking__code">
+                  Nomor pelacakan: {order.tracking || "Menunggu paket dikirim"}
+                </p>
+              </div>
               <dl className="order-detail__dl">
                 <div>
                   <dt>{t("orders_date")}</dt>
-                  <dd>{formatDate(order.date)}</dd>
+                  <dd>{formatDate(order.date || order.created_at)}</dd>
                 </div>
                 <div>
                   <dt>{t("orders_status")}</dt>
@@ -159,7 +219,7 @@ export default function OrderDetail() {
                 </div>
                 <div>
                   <dt>{t("orders_payment")}</dt>
-                  <dd>{order.payment || "—"}</dd>
+                  <dd>{order.payment || order.paymentMethod || "—"}</dd>
                 </div>
                 {order.tracking && (
                   <div>
@@ -177,7 +237,7 @@ export default function OrderDetail() {
                 </div>
                 <div className="order-detail__total-row">
                   <dt>{t("orders_total")}</dt>
-                  <dd>{formatRupiah(order.total)}</dd>
+                  <dd>{formatRupiah(order.total || order.total_amount)}</dd>
                 </div>
               </dl>
             </section>
@@ -195,7 +255,7 @@ export default function OrderDetail() {
             </section>
 
             <div className="order-detail__actions">
-              {order.status === "belum-dibayar" && (
+              {order.status === "belum-dibayar" && order.paymentMethod !== "COD" && !order.payment?.includes("COD") && (
                 <button
                   type="button"
                   className="order-btn order-btn--primary order-btn--block"

@@ -2,10 +2,10 @@ import { useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { useLanguage } from "../../context/LanguageContext";
 import { setAdminSession, isAdminLoggedIn } from "../../context/AuthContext";
-import { loginRequest } from "../../services/authService";
 import "../admin.css";
 
-const ADMIN_EMAILS = ["admin@wastrahub.com", "admin@batikartisan.com"];
+const ADMIN_EMAIL = "admin@wastrahub.com";
+const ADMIN_PASSWORD = "admin123";
 
 export default function AdminLogin() {
   const { t } = useLanguage();
@@ -24,51 +24,21 @@ export default function AdminLogin() {
     const normalized = email.trim().toLowerCase();
 
     try {
-      const { data, source } = await loginRequest(normalized, password);
-      const user = data.user;
-
-      if (user.role !== "admin" && user.role !== "superadmin") {
-        if (
-          ADMIN_EMAILS.includes(normalized) &&
-          password === "admin123" &&
-          source === "dummy"
-        ) {
-          setAdminSession(
-            {
-              id: "admin-1",
-              name: "Admin WastraHub",
-              email: normalized,
-              role: "admin",
-            },
-            data.token
-          );
-          navigate("/admin", { replace: true });
-          return;
-        }
-        setError("Akun ini bukan admin.");
-        return;
+      if (normalized !== ADMIN_EMAIL || password !== ADMIN_PASSWORD) {
+        throw new Error("Email atau password admin salah.");
       }
-
-      setAdminSession({ ...user, role: user.role || "admin" }, data.token);
+      setAdminSession(
+        {
+          id: "admin-1",
+          name: "Admin WastraHub",
+          email: ADMIN_EMAIL,
+          role: "admin",
+        },
+        "dummy-admin-token"
+      );
       navigate("/admin", { replace: true });
     } catch (err) {
-      if (ADMIN_EMAILS.includes(normalized) && password === "admin123") {
-        setAdminSession(
-          {
-            id: "admin-1",
-            name: "Admin WastraHub",
-            email: normalized,
-            role: "admin",
-          },
-          "dummy-admin-token"
-        );
-        navigate("/admin", { replace: true });
-        return;
-      }
-      setError(
-        err.message ||
-          "Email / password salah. Demo: admin@wastrahub.com / admin123"
-      );
+      setError(err.message);
     } finally {
       setLoading(false);
     }
@@ -115,9 +85,6 @@ export default function AdminLogin() {
             {t("admin_login") || "Login Admin"}
           </button>
         </form>
-        <p style={{ marginTop: 16, fontSize: 12, opacity: 0.6 }}>
-          Demo: admin@wastrahub.com / admin123
-        </p>
       </div>
     </div>
   );

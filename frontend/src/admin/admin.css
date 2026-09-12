@@ -1712,8 +1712,8 @@
   position: absolute;
   right: 0;
   top: calc(100% + 8px);
-  width: 22rem;
-  max-width: min(22rem, calc(100vw - 24px));
+  width: min(34rem, calc(100vw - 24px));
+  min-width: min(28rem, calc(100vw - 24px));
   background: #ffffff;
   border-radius: 12px;
   box-shadow: 0 12px 40px rgba(38, 23, 12, 0.14);
@@ -1766,6 +1766,7 @@
   line-height: 1.4;
   color: var(--admin-primary, #26170c);
   word-break: break-word;
+  overflow-wrap: anywhere;
 }
 .admin-notif__time {
   flex: 0 0 auto;
@@ -1785,5 +1786,17 @@
   .admin-need-ship-chip {
     max-width: min(13rem, calc(100vw - 150px));
     padding-inline: 10px;
+  }
+  .admin-notif__panel {
+    right: -8px;
+    width: min(22rem, calc(100vw - 20px));
+    min-width: 0;
+  }
+  .admin-notif__row {
+    display: block;
+  }
+  .admin-notif__time {
+    display: block;
+    margin-top: 4px;
   }
 }

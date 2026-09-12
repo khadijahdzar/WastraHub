@@ -10,9 +10,20 @@ class AdminMiddleware
 {
     public function handle(Request $request, Closure $next): Response
     {
+        // Mode demo lokal
+        if (
+            app()->environment('local') &&
+            $request->bearerToken() === 'dummy-admin-token'
+        ) {
+            return $next($request);
+        }
+
         $user = $request->user();
 
-        if (!$user || !in_array($user->role ?? '', ['admin', 'superadmin'], true)) {
+        if (
+            !$user ||
+            !in_array($user->role ?? '', ['admin', 'superadmin'], true)
+        ) {
             return response()->json([
                 'message' => 'Unauthorized. Admin only.',
             ], 403);

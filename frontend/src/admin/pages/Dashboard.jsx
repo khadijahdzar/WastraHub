@@ -112,7 +112,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     let cancelled = false;
-    (async () => {
+    const load = async () => {
       setLoading(true);
       try {
         const [oRes, pRes, sRes] = await Promise.all([
@@ -144,9 +144,19 @@ export default function Dashboard() {
       } finally {
         if (!cancelled) setLoading(false);
       }
-    })();
+    };
+    load();
+    const refresh = () => {
+      if (!cancelled) load();
+    };
+    window.addEventListener("wastrahub:order-created", refresh);
+    window.addEventListener("storage", refresh);
+    const interval = setInterval(load, 10000);
     return () => {
       cancelled = true;
+      window.removeEventListener("wastrahub:order-created", refresh);
+      window.removeEventListener("storage", refresh);
+      clearInterval(interval);
     };
   }, []);
 

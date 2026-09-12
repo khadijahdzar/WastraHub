@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect } from "react";
+import { normalizeProduct } from "../utils/productData";
 
 const CartContext = createContext(null);
 
@@ -9,7 +10,8 @@ export function CartProvider({ children }) {
     const stored = localStorage.getItem("wastrahub_cart");
     if (stored) {
       try {
-        setItems(JSON.parse(stored));
+        const savedItems = JSON.parse(stored);
+        setItems(Array.isArray(savedItems) ? savedItems.map(normalizeProduct) : []);
       } catch {
         localStorage.removeItem("wastrahub_cart");
       }
@@ -21,14 +23,17 @@ export function CartProvider({ children }) {
   }, [items]);
 
   const addToCart = (product, quantity = 1) => {
+    const cartProduct = normalizeProduct(product);
     setItems((prev) => {
-      const existing = prev.find((i) => i.id === product.id);
+      const existing = prev.find((i) => i.id === cartProduct.id);
       if (existing) {
         return prev.map((i) =>
-          i.id === product.id ? { ...i, quantity: i.quantity + quantity } : i
+          i.id === cartProduct.id
+            ? { ...i, ...cartProduct, quantity: i.quantity + quantity }
+            : i
         );
       }
-      return [...prev, { ...product, quantity }];
+      return [...prev, { ...cartProduct, quantity }];
     });
   };
 

@@ -19,19 +19,13 @@ class ReportController extends Controller
             ->sum('total_amount');
 
         $totalOrders = Order::count();
-
         $pendingOrders = Order::where('status', 'pending')->count();
-
         $processingOrders = Order::where('status', 'processing')->count();
-
         $shippedOrders = Order::where('status', 'shipped')->count();
-
         $completedOrders = Order::where('status', 'completed')->count();
-
         $cancelledOrders = Order::where('status', 'cancelled')->count();
 
         $totalProducts = Product::count();
-
         $totalCustomers = User::where('role', 'user')->count();
 
         $bestSellingProducts = OrderDetail::selectRaw('
@@ -52,20 +46,24 @@ class ReportController extends Controller
             ->get();
 
         return response()->json([
-            'total_revenue'      => $totalRevenue,
-            'revenue'            => $totalRevenue,
-            'total_orders'       => $totalOrders,
-            'orders'             => $totalOrders,
-            'pending_orders'     => $pendingOrders,
-            'processing_orders'  => $processingOrders,
-            'shipped_orders'     => $shippedOrders,
-            'completed_orders'   => $completedOrders,
-            'cancelled_orders'   => $cancelledOrders,
-            'total_products'     => $totalProducts,
-            'total_customers'    => $totalCustomers,
-            'customers'          => $totalCustomers,
+            'success'              => true,
+            'total_revenue'        => $totalRevenue,
+            'revenue'              => $totalRevenue,
+            'total_orders'         => $totalOrders,
+            'orders'               => $totalOrders,
+            'pending_orders'       => $pendingOrders,
+            'processing_orders'    => $processingOrders,
+            'shipped_orders'       => $shippedOrders,
+            'completed_orders'     => $completedOrders,
+            'cancelled_orders'     => $cancelledOrders,
+            'total_products'       => $totalProducts,
+            'total_customers'      => $totalCustomers,
+            'customers'            => $totalCustomers,
             'best_selling_products' => $bestSellingProducts,
-            'daily_sales'        => $dailySales,
+            'daily_sales'          => $dailySales,
+            // Tambahan alias 'reports' & 'sales' untuk mengantisipasi key frontend yang berbeda
+            'reports'              => $dailySales, 
+            'sales'                => $dailySales,
         ]);
     }
 }

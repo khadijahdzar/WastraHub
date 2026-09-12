@@ -1,0 +1,29 @@
+.wastra-chat { position: fixed; right: 24px; bottom: 24px; z-index: 40; font-family: inherit; }
+.wastra-chat__toggle { display: grid; place-items: center; width: 54px; height: 54px; border: 0; border-radius: 50%; padding: 0; background: var(--primary, #432818); color: #fff; cursor: pointer; box-shadow: 0 10px 28px rgba(67, 40, 24, .22); transition: transform .2s ease, background .2s ease; }
+.wastra-chat__toggle:hover { background: #5a3824; transform: translateY(-2px); }
+.wastra-chat__toggle--open { visibility: hidden; pointer-events: none; }
+.wastra-chat__panel { width: min(360px, calc(100vw - 32px)); margin-bottom: 12px; overflow: hidden; border: 1px solid var(--border, #e8dfd4); border-radius: 16px; background: #fff; box-shadow: 0 16px 44px rgba(67, 40, 24, .2); }
+.wastra-chat__header { display: flex; justify-content: space-between; align-items: center; padding: 15px 16px; background: var(--primary, #432818); color: #fff; }
+.wastra-chat__header strong, .wastra-chat__header span { display: block; }
+.wastra-chat__header span { margin-top: 3px; font-size: 11px; opacity: .75; }
+.wastra-chat__header button, .wastra-chat__form button { border: 0; background: transparent; color: inherit; cursor: pointer; }
+.wastra-chat__messages { display: flex; flex-direction: column; gap: 9px; height: 300px; overflow-y: auto; padding: 14px; background: #fcf9f6; }
+.wastra-chat__message { max-width: 86%; margin: 0; padding: 9px 11px; border-radius: 12px; font-size: 13px; line-height: 1.45; white-space: pre-wrap; }
+.wastra-chat__message--model { align-self: flex-start; background: #fff; border: 1px solid var(--border, #e8dfd4); }
+.wastra-chat__message--user { align-self: flex-end; background: #f3e8dc; color: #432818; }
+.wastra-chat__products { display: grid; gap: 7px; margin-top: 9px; }
+.wastra-chat__product { display: flex; flex-direction: column; gap: 3px; padding: 9px 10px; border: 1px solid #e8dfd4; border-radius: 9px; background: #fffaf5; color: #432818; text-decoration: none; transition: border-color .2s ease, transform .2s ease; }
+.wastra-chat__product:hover { border-color: #bb9457; transform: translateY(-1px); }
+.wastra-chat__product-name { font-size: 12px; font-weight: 700; line-height: 1.35; }
+.wastra-chat__product-meta { font-size: 11px; color: #795830; }
+.wastra-chat__loading, .wastra-chat__error { display: flex; align-items: center; gap: 6px; margin: 0; font-size: 12px; color: #795830; }
+.wastra-chat__loading svg { animation: wastra-chat-spin .8s linear infinite; }
+.wastra-chat__error { color: #991b1b; }
+.wastra-chat__form { display: flex; gap: 8px; padding: 11px; border-top: 1px solid var(--border, #e8dfd4); }
+.wastra-chat__form input { min-width: 0; flex: 1; border: 1px solid var(--border, #e8dfd4); border-radius: 9px; padding: 9px 10px; font: inherit; font-size: 13px; }
+.wastra-chat__form button { display: grid; place-items: center; width: 40px; border-radius: 9px; background: var(--primary, #432818); color: #fff; }
+.wastra-chat__send svg { transform: rotate(-8deg); }
+.wastra-chat__form button:disabled { opacity: .45; cursor: not-allowed; }
+.wastra-chat__reset { width: 100%; padding: 0 12px 11px; border: 0; background: #fff; color: #795830; font-size: 11px; cursor: pointer; }
+@keyframes wastra-chat-spin { to { transform: rotate(360deg); } }
+@media (max-width: 480px) { .wastra-chat { right: 12px; bottom: 12px; } .wastra-chat__toggle { width: 50px; height: 50px; } }

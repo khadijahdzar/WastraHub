@@ -25,6 +25,8 @@ const CATEGORIES = [
 
 const TECHNIQUES = ["Tulis", "Cap", "Modern", "Printing", "Kombinasi"];
 
+const PAGE_SIZE = 12;
+
 const empty = {
   name: "",
   price: "",
@@ -43,6 +45,7 @@ export default function Products() {
   const { t } = useLanguage();
   const [list, setList] = useState([]);
   const [q, setQ] = useState("");
+  const [page, setPage] = useState(1);
   const [modal, setModal] = useState(null);
   const [form, setForm] = useState(empty);
   const [loading, setLoading] = useState(true);
@@ -66,8 +69,19 @@ export default function Products() {
     load();
   }, []);
 
+  useEffect(() => {
+    setPage(1);
+  }, [q]);
+
   const filtered = list.filter((p) =>
     (p.name || "").toLowerCase().includes(q.toLowerCase())
+  );
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const pageItems = filtered.slice(
+    (currentPage - 1) * PAGE_SIZE,
+    currentPage * PAGE_SIZE
   );
 
   const openAdd = () => {
@@ -86,8 +100,8 @@ export default function Products() {
       status: p.status || "active",
       description: p.description || "",
       region_id: p.region_id || "",
-      image: p.image || "",
-      imagePreview: p.image || "",
+      image: p.image || p.image_url || "",
+      imagePreview: p.image || p.image_url || "",
     });
     setModal(p);
   };
@@ -145,7 +159,9 @@ export default function Products() {
         if (res.source === "api") await load();
         else
           setList((prev) =>
-            prev.map((p) => (p.id === modal.id ? { ...p, ...res.data } : p))
+            prev.map((p) =>
+              p.id === modal.id ? { ...p, ...res.data } : p
+            )
           );
       }
       setModal(null);
@@ -167,6 +183,20 @@ export default function Products() {
     }
   };
 
+  const pageNumbers = (() => {
+    const nums = [];
+    for (let n = 1; n <= totalPages; n++) {
+      if (
+        n === 1 ||
+        n === totalPages ||
+        Math.abs(n - currentPage) <= 1
+      ) {
+        nums.push(n);
+      }
+    }
+    return nums;
+  })();
+
   return (
     <div className="admin-page-fade">
       <div className="admin-toolbar">
@@ -176,15 +206,28 @@ export default function Products() {
           value={q}
           onChange={(e) => setQ(e.target.value)}
         />
-        <button type="button" className="admin-btn admin-btn--primary" onClick={openAdd}>
+        <button
+          type="button"
+          className="admin-btn admin-btn--primary"
+          onClick={openAdd}
+        >
           <Plus size={16} /> {t("admin_add_product") || "Tambah Produk"}
         </button>
       </div>
+
+      {!loading && (
+        <p className="admin-muted" style={{ marginBottom: 8 }}>
+          Menampilkan {pageItems.length} dari {filtered.length} produk
+          {list.length !== filtered.length ? ` (filter dari ${list.length})` : ""}
+        </p>
+      )}
+
       {error && (
         <p className="admin-login__error" style={{ marginBottom: 12 }}>
           {error}
         </p>
       )}
+
       <div className="admin-panel">
         <div className="admin-table-wrap">
           <table className="admin-table">
@@ -200,20 +243,29 @@ export default function Products() {
               </tr>
             </thead>
             <tbody>
-              {!loading && filtered.length === 0 ? (
+              {loading ? (
+                <tr>
+                  <td colSpan={7}>Memuat...</td>
+                </tr>
+              ) : pageItems.length === 0 ? (
                 <tr>
                   <td colSpan={7}>Tidak ada produk</td>
                 </tr>
-              ) : !loading ? (
-                filtered.map((p) => (
+              ) : (
+                pageItems.map((p) => (
                   <tr key={p.id}>
                     <td>
                       <img
                         className="admin-thumb"
-                        src={p.image || "/images/products/placeholder.jpg"}
+                        src={
+                          p.image ||
+                          p.image_url ||
+                          "/images/products/placeholder.jpg"
+                        }
                         alt=""
                         onError={(e) => {
-                          e.currentTarget.src = "/images/products/placeholder.jpg";
+                          e.currentTarget.src =
+                            "/images/products/placeholder.jpg";
                         }}
                       />
                     </td>
@@ -252,15 +304,70 @@ export default function Products() {
                     </td>
                   </tr>
                 ))
-              ) : null}
+              )}
             </tbody>
           </table>
         </div>
+
+        {!loading && filtered.length > 0 && (
+          <div
+            className="admin-pagination"
+            style={{
+              display: "flex",
+              gap: 8,
+              alignItems: "center",
+              marginTop: 16,
+              justifyContent: "flex-end",
+              flexWrap: "wrap",
+            }}
+          >
+            <span className="admin-muted">
+              Halaman {currentPage}/{totalPages}
+            </span>
+            <button
+              type="button"
+              className="admin-btn admin-btn--ghost admin-btn--sm"
+              disabled={currentPage <= 1}
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+            >
+              Prev
+            </button>
+            {pageNumbers.map((n, idx) => (
+              <span key={n} style={{ display: "inline-flex", gap: 4 }}>
+                {idx > 0 && pageNumbers[idx - 1] !== n - 1 && (
+                  <span className="admin-muted">…</span>
+                )}
+                <button
+                  type="button"
+                  className={`admin-btn admin-btn--sm ${
+                    n === currentPage
+                      ? "admin-btn--primary"
+                      : "admin-btn--ghost"
+                  }`}
+                  onClick={() => setPage(n)}
+                >
+                  {n}
+                </button>
+              </span>
+            ))}
+            <button
+              type="button"
+              className="admin-btn admin-btn--ghost admin-btn--sm"
+              disabled={currentPage >= totalPages}
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            >
+              Next
+            </button>
+          </div>
+        )}
       </div>
 
       {modal && (
         <div className="admin-modal-overlay" onClick={() => setModal(null)}>
-          <div className="admin-modal admin-modal--lg" onClick={(e) => e.stopPropagation()}>
+          <div
+            className="admin-modal admin-modal--lg"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="admin-modal__header">
               <h2>
                 {modal === "add"
@@ -281,7 +388,11 @@ export default function Products() {
                   <label>Gambar Produk</label>
                   <div className="admin-image-upload">
                     {form.imagePreview ? (
-                      <img src={form.imagePreview} alt="Preview" className="admin-image-preview" />
+                      <img
+                        src={form.imagePreview}
+                        alt="Preview"
+                        className="admin-image-preview"
+                      />
                     ) : (
                       <div className="admin-image-placeholder">
                         <ImagePlus size={28} />
@@ -299,9 +410,12 @@ export default function Products() {
                         />
                       </label>
                       <input
-                        type="url"
+                        type="text"
+                        inputMode="url"
                         placeholder="atau tempel URL gambar"
-                        value={form.image?.startsWith("data:") ? "" : form.image}
+                        value={
+                          form.image?.startsWith("data:") ? "" : form.image
+                        }
                         onChange={(e) =>
                           setForm({
                             ...form,
@@ -319,7 +433,9 @@ export default function Products() {
                   <input
                     required
                     value={form.name}
-                    onChange={(e) => setForm({ ...form, name: e.target.value })}
+                    onChange={(e) =>
+                      setForm({ ...form, name: e.target.value })
+                    }
                   />
                 </div>
 
@@ -331,7 +447,9 @@ export default function Products() {
                       required
                       min="0"
                       value={form.price}
-                      onChange={(e) => setForm({ ...form, price: e.target.value })}
+                      onChange={(e) =>
+                        setForm({ ...form, price: e.target.value })
+                      }
                     />
                   </div>
                   <div className="admin-field">
@@ -341,7 +459,9 @@ export default function Products() {
                       required
                       min="0"
                       value={form.stock}
-                      onChange={(e) => setForm({ ...form, stock: e.target.value })}
+                      onChange={(e) =>
+                        setForm({ ...form, stock: e.target.value })
+                      }
                     />
                   </div>
                 </div>
@@ -352,7 +472,10 @@ export default function Products() {
                     <select
                       value={form.category_id}
                       onChange={(e) =>
-                        setForm({ ...form, category_id: Number(e.target.value) })
+                        setForm({
+                          ...form,
+                          category_id: Number(e.target.value),
+                        })
                       }
                     >
                       {CATEGORIES.map((c) => (

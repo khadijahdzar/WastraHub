@@ -19,6 +19,7 @@ class Product extends Model
         'image',
         'material',
         'type',
+        'technique',
         'status',
     ];
 
@@ -44,7 +45,11 @@ class Product extends Model
         if (!$image) {
             return null;
         }
-        if (str_starts_with($image, 'http://') || str_starts_with($image, 'https://') || str_starts_with($image, 'data:')) {
+        if (
+            str_starts_with($image, 'http://') ||
+            str_starts_with($image, 'https://') ||
+            str_starts_with($image, 'data:')
+        ) {
             return $image;
         }
         if (str_starts_with($image, '/')) {
@@ -53,6 +58,7 @@ class Product extends Model
         if (Storage::disk('public')->exists($image)) {
             return Storage::disk('public')->url($image);
         }
+        // backend/public/images/products/{file}
         return url('/images/products/' . ltrim($image, '/'));
     }
 }

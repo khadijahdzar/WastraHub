@@ -57,11 +57,16 @@ export default function Orders() {
   useEffect(() => {
     load();
     const onPaid = () => load();
+    const onUpdated = () => load();
     window.addEventListener("wastrahub:order-paid", onPaid);
+    window.addEventListener("wastrahub:order-created", onPaid);
+    window.addEventListener("wastrahub:orders-updated", onUpdated);
     window.addEventListener("storage", onPaid);
     const interval = setInterval(load, 20000);
     return () => {
       window.removeEventListener("wastrahub:order-paid", onPaid);
+      window.removeEventListener("wastrahub:order-created", onPaid);
+      window.removeEventListener("wastrahub:orders-updated", onUpdated);
       window.removeEventListener("storage", onPaid);
       clearInterval(interval);
     };
@@ -73,6 +78,7 @@ export default function Orders() {
     );
     try {
       await adminUpdateOrderStatus(id, status);
+      window.dispatchEvent(new CustomEvent("wastrahub:orders-updated"));
     } catch (err) {
       alert(err.message);
       load();
@@ -82,11 +88,19 @@ export default function Orders() {
   const removeOrder = async (order) => {
     const status = String(order.status || "").toLowerCase();
     if (!["completed", "cancelled"].includes(status)) return;
-    if (!window.confirm("Hapus riwayat pesanan ini? Data tidak dapat dipulihkan.")) return;
+    if (
+      !window.confirm(
+        "Hapus riwayat pesanan ini? Data tidak dapat dipulihkan."
+      )
+    )
+      return;
 
     try {
-      await adminDeleteOrder(order.id);
-      setOrders((previous) => previous.filter((item) => String(item.id) !== String(order.id)));
+      await adminDeleteOrder(order);
+      setOrders((previous) =>
+        previous.filter((item) => String(item.id) !== String(order.id))
+      );
+      window.dispatchEvent(new CustomEvent("wastrahub:orders-updated"));
     } catch (err) {
       alert(err.message);
     }
@@ -99,13 +113,17 @@ export default function Orders() {
         .join(", ");
     }
     if (o.items?.length) {
-      return o.items.map((d) => d.name || d.product?.name || "Item").join(", ");
+      return o.items
+        .map((d) => d.name || d.product?.name || "Item")
+        .join(", ");
     }
     return "—";
   };
 
   const needShip = orders.filter((o) =>
-    ["paid", "processing"].includes(String(o.status || "").toLowerCase())
+    ["pending", "unpaid", "paid", "processing"].includes(
+      String(o.status || "").toLowerCase()
+    )
   );
 
   const filtered =
@@ -191,7 +209,9 @@ export default function Orders() {
           </button>
           <button
             type="button"
-            className={`admin-chip admin-chip--needs-shipping ${filter === "need_ship" ? "active" : ""}`}
+            className={`admin-chip admin-chip--needs-shipping ${
+              filter === "need_ship" ? "active" : ""
+            }`}
             onClick={() => setFilter("need_ship")}
           >
             {t("admin_need_ship") || "Perlu Dikirim"} ({needShip.length})
@@ -201,7 +221,13 @@ export default function Orders() {
             className={`admin-chip ${filter === "pending" ? "active" : ""}`}
             onClick={() => setFilter("pending")}
           >
-            Belum Dibayar
+            Belum Dibayar (
+            {
+              orders.filter(
+                (o) => String(o.status || "").toLowerCase() === "pending"
+              ).length
+            }
+            )
           </button>
           <button
             type="button"
@@ -218,14 +244,15 @@ export default function Orders() {
           disabled={loading}
           title="Refresh"
         >
-            <RefreshCw size={16} />
+          <RefreshCw size={16} />
         </button>
       </div>
 
       {needShip.length > 0 && filter === "all" && (
         <p className="admin-alert admin-alert--warn">
-          {t("admin_need_ship") || "Perlu Dikirim"}: <strong>{needShip.length}</strong> pesanan
-          menunggu diproses / dikirim.
+          {t("admin_need_ship") || "Perlu Dikirim"}:{" "}
+          <strong>{needShip.length}</strong> pesanan menunggu diproses /
+          dikirim.
         </p>
       )}
 
@@ -245,32 +272,45 @@ export default function Orders() {
               </tr>
             </thead>
             <tbody>
-              {!loading && filtered.length === 0 ? (
+              {loading ? (
+                <tr>
+                  <td colSpan={6}>Memuat...</td>
+                </tr>
+              ) : filtered.length === 0 ? (
                 <tr>
                   <td colSpan={6}>Belum ada pesanan</td>
                 </tr>
-              ) : !loading ? (
+              ) : (
                 filtered.map((o) => {
                   const st = String(o.status || "pending").toLowerCase();
                   const isNeed = ["paid", "processing"].includes(st);
                   return (
-                    <tr key={o.id} className={isNeed ? "row-highlight" : undefined}>
+                    <tr
+                      key={o.id}
+                      className={isNeed ? "row-highlight" : undefined}
+                    >
                       <td>
                         <strong>{o.order_number || o.id}</strong>
                       </td>
                       <td>
                         <div className="admin-cell-stack">
-                          <span>{o.customer_name || o.user?.name || "—"}</span>
+                          <span>
+                            {o.customer_name || o.user?.name || "—"}
+                          </span>
                           {o.phone && (
                             <span className="admin-muted">{o.phone}</span>
                           )}
                         </div>
                       </td>
                       <td className="admin-cell-clamp">{itemLabel(o)}</td>
-                      <td>{formatRupiah(o.total_amount ?? o.total ?? 0)}</td>
+                      <td>
+                        {formatRupiah(o.total_amount ?? o.total ?? 0)}
+                      </td>
                       <td>
                         <select
-                          className={`admin-select admin-select--status status-${STATUS_CLASS[st] || "pending"}`}
+                          className={`admin-select admin-select--status status-${
+                            STATUS_CLASS[st] || "pending"
+                          }`}
                           value={
                             STATUS_FLOW.some((s) => s.value === st)
                               ? st
@@ -310,7 +350,7 @@ export default function Orders() {
                     </tr>
                   );
                 })
-              ) : null}
+              )}
             </tbody>
           </table>
         </div>

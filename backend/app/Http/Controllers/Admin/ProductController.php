@@ -11,14 +11,48 @@ class ProductController extends Controller
 {
     /**
      * GET /api/admin/products
+     * Ambil SEMUA produk (tanpa limit). Support ?all=1 & ?per_page=
      */
-    public function index()
+    public function index(Request $request)
     {
-        $products = Product::with(['category', 'region'])
-            ->latest()
-            ->get();
+        $q = Product::with(['category', 'region'])->latest();
 
-        return response()->json($products);
+        if ($request->filled('status')) {
+            $q->where('status', $request->string('status'));
+        }
+
+        if ($request->filled('search') || $request->filled('q')) {
+            $term = $request->input('search', $request->input('q'));
+            $q->where(function ($w) use ($term) {
+                $w->where('name', 'like', "%{$term}%")
+                    ->orWhere('slug', 'like', "%{$term}%")
+                    ->orWhere('description', 'like', "%{$term}%");
+            });
+        }
+
+        // Default: semua data (admin butuh full list)
+        if ($request->boolean('all', true) && !$request->filled('per_page')) {
+            $products = $q->get();
+
+            return response()->json([
+                'data'  => $products,
+                'total' => $products->count(),
+            ]);
+        }
+
+        $perPage = min(max((int) $request->input('per_page', 50), 1), 200);
+        $paginator = $q->paginate($perPage);
+
+        return response()->json([
+            'data' => $paginator->items(),
+            'meta' => [
+                'total'        => $paginator->total(),
+                'per_page'     => $paginator->perPage(),
+                'current_page' => $paginator->currentPage(),
+                'last_page'    => $paginator->lastPage(),
+            ],
+            'total' => $paginator->total(),
+        ]);
     }
 
     /**
@@ -37,11 +71,22 @@ class ProductController extends Controller
             'image'       => 'nullable|string',
             'material'    => 'nullable|string|max:255',
             'type'        => 'required|string|in:Batik Tulis,Batik Cap,Batik Premium,Batik Modern',
+            'technique'   => 'nullable|string|max:100',
             'status'      => 'required|in:active,inactive',
         ]);
 
         if (empty($data['slug'])) {
-            $data['slug'] = Str::slug($data['name']);
+            $base = Str::slug($data['name']);
+            $slug = $base;
+            $i = 1;
+            while (Product::where('slug', $slug)->exists()) {
+                $slug = $base . '-' . $i++;
+            }
+            $data['slug'] = $slug;
+        }
+
+        if (empty($data['technique']) && !empty($data['type'])) {
+            $data['technique'] = str_replace('Batik ', '', $data['type']);
         }
 
         $product = Product::create($data);
@@ -57,9 +102,9 @@ class ProductController extends Controller
      */
     public function show(Product $product)
     {
-        return response()->json(
-            $product->load(['category', 'region'])
-        );
+        return response()->json([
+            'data' => $product->load(['category', 'region']),
+        ]);
     }
 
     /**
@@ -69,7 +114,7 @@ class ProductController extends Controller
     {
         $data = $request->validate([
             'category_id' => 'sometimes|exists:categories,id',
-            'region_id'   => 'sometimes|exists:regions,id',
+            'region_id'   => 'sometimes|nullable|exists:regions,id',
             'name'        => 'sometimes|string|max:255',
             'slug'        => 'sometimes|string|unique:products,slug,' . $product->id,
             'description' => 'nullable|string',
@@ -78,6 +123,7 @@ class ProductController extends Controller
             'image'       => 'nullable|string',
             'material'    => 'nullable|string|max:255',
             'type'        => 'sometimes|string|in:Batik Tulis,Batik Cap,Batik Premium,Batik Modern',
+            'technique'   => 'nullable|string|max:100',
             'status'      => 'sometimes|in:active,inactive',
         ]);
 

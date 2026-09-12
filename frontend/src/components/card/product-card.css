@@ -131,3 +131,16 @@
   font-weight: 500;
   color: var(--text-muted);
 }
+.product-card__image-wrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1; /* Memastikan kotak gambar selalu konsisten */
+  background-color: #f3f4f6; /* Warna placeholder rapi sebelum gambar muat */
+  overflow: hidden;
+}
+
+.product-card__image-wrap img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover; /* Mencegah gambar gepeng */
+}

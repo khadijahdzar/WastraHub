@@ -23,30 +23,36 @@ export default function ImageWithFallback({
   className = "",
   style,
   fallback = PLACEHOLDER_SVG,
+  loading = "lazy",
   ...rest
 }) {
   const [currentSrc, setCurrentSrc] = useState(src || fallback);
-  const [failed, setFailed] = useState(false);
+  const [hasError, setHasError] = useState(false);
 
+  // Sync state jika prop src atau fallback berubah
   useEffect(() => {
     setCurrentSrc(src || fallback);
-    setFailed(false);
+    setHasError(false);
   }, [src, fallback]);
 
   const handleError = () => {
-    if (!failed) {
-      setFailed(true);
-      setCurrentSrc(fallback);
+    // Cegah infinite loop jika fallback image juga gagal dimuat
+    if (!hasError) {
+      setHasError(true);
+      setCurrentSrc(fallback || PLACEHOLDER_SVG);
+    } else if (currentSrc !== PLACEHOLDER_SVG) {
+      // Jika fallback lokal juga gagal, paksa gunakan Inline SVG
+      setCurrentSrc(PLACEHOLDER_SVG);
     }
   };
 
   return (
     <img
-      src={currentSrc || fallback}
-      alt={alt}
+      src={currentSrc || PLACEHOLDER_SVG}
+      alt={alt ?? "WastraHub Product"}
       className={className}
       style={style}
-      loading="lazy"
+      loading={loading}
       onError={handleError}
       {...rest}
     />

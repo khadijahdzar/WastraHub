@@ -1,9 +1,11 @@
 import { Link, useNavigate } from "react-router-dom";
 import { Minus, Plus, Trash2, ShoppingBag } from "lucide-react";
+import { useState } from "react";
 import { useCart } from "../context/CartContext";
 import { useAuth } from "../context/AuthContext";
 import { useLanguage } from "../context/LanguageContext";
 import { formatPrice } from "../data/products";
+import { calculateVoucherDiscount, readVouchers } from "../utils/vouchers";
 import Button from "../components/common/Button";
 import "./cart.css";
 
@@ -12,6 +14,26 @@ export default function Cart() {
   const { isAuthenticated } = useAuth();
   const { t } = useLanguage();
   const navigate = useNavigate();
+  const [voucher, setVoucher] = useState("");
+  const [discount, setDiscount] = useState(0);
+  const [voucherMessage, setVoucherMessage] = useState("");
+
+  const applyVoucher = () => {
+    const code = voucher.trim().toUpperCase();
+    const result = calculateVoucherDiscount(readVouchers(), code, subtotal);
+    if (!result.discount) {
+      setDiscount(0);
+      localStorage.removeItem("wastrahub_applied_voucher");
+      setVoucherMessage("Kode voucher tidak ditemukan atau sudah tidak aktif.");
+      return;
+    }
+    setDiscount(result.discount);
+    localStorage.setItem(
+      "wastrahub_applied_voucher",
+      JSON.stringify(result)
+    );
+    setVoucherMessage(`Voucher ${code} berhasil digunakan.`);
+  };
 
   const handleCheckout = () => {
     if (!isAuthenticated) {
@@ -54,7 +76,13 @@ export default function Cart() {
             {items.map((item) => (
               <div key={item.id} className="cart-item">
                 <div className="cart-item__image">
-                  <img src={item.images?.[0] || "/images/products/placeholder.jpg"} alt={item.name} />
+                  <img
+                    src={item.images?.[0] || item.image || item.image_url || "/images/products/placeholder.jpg"}
+                    alt={item.name}
+                    onError={(event) => {
+                      event.currentTarget.src = "/images/products/placeholder.jpg";
+                    }}
+                  />
                 </div>
                 <div className="cart-item__info">
                   <Link to={`/product/${item.id}`} className="cart-item__name">
@@ -97,12 +125,18 @@ export default function Cart() {
               <span>{t("cart_shipping_calc")}</span>
             </div>
             <div className="cart__voucher">
-              <input type="text" placeholder={t("cart_voucher")} />
-              <button type="button">{t("cart_apply")}</button>
+              <input
+                type="text"
+                placeholder={t("cart_voucher")}
+                value={voucher}
+                onChange={(e) => setVoucher(e.target.value)}
+              />
+              <button type="button" onClick={applyVoucher}>{t("cart_apply")}</button>
             </div>
+            {voucherMessage && <p className="cart__voucher-message">{voucherMessage}</p>}
             <div className="cart__row cart__row--total">
               <span>{t("cart_total")}</span>
-              <strong>{formatPrice(subtotal)}</strong>
+              <strong>{formatPrice(Math.max(0, subtotal - discount))}</strong>
             </div>
             <Button variant="primary" size="lg" fullWidth onClick={handleCheckout}>
               {t("cart_checkout")}

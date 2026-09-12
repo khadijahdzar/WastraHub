@@ -101,10 +101,22 @@
 }
 
 .regions-featured__cta-btn {
-  background: none;
-  border: none;
-  padding: 0;
+  display: inline-flex;
+  width: fit-content;
+  background: #fff;
+  border: 1px solid #d8c7b5;
+  border-radius: 12px;
+  padding: 14px 22px;
+  color: #432818;
+  box-shadow: 0 4px 14px rgba(67, 40, 24, 0.08);
   cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.regions-featured__cta-btn:hover {
+  background: #fffaf5;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(67, 40, 24, 0.12);
 }
 
 /* ===== Map area (fixed) ===== */
@@ -160,7 +172,7 @@
 .regions-cards {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 24px;
+  gap: 30px;
 }
 
 .regions-card {

@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
-import { ShieldCheck, Users, Truck, CreditCard } from "lucide-react";
+import { ShieldCheck, Users, Truck, CreditCard, AlertTriangle, RefreshCw } from "lucide-react";
 import ProductCard from "../components/card/ProductCard";
 import RegionCard from "../components/card/RegionCard";
 import SectionTitle from "../components/common/SectionTitle";
@@ -13,20 +13,58 @@ export default function Home() {
   const { t, lang } = useLanguage();
   const [featured, setFeatured] = useState([]);
   const [regions, setRegions] = useState([]);
+  const [isFallbackMode, setIsFallbackMode] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const loadData = useCallback(async (signal) => {
+    setIsLoading(true);
+    try {
+      const [featRes, regRes] = await Promise.all([
+        fetchFeatured({ signal }),
+        fetchRegions(),
+      ]);
+
+      // Defensive Check & Array Coalescing
+      const featuredData = Array.isArray(featRes?.data) ? featRes.data : [];
+      const regionsData = Array.isArray(regRes?.data) ? regRes.data : [];
+
+      setFeatured(featuredData.slice(0, 4));
+      setRegions(regionsData);
+
+      // Evaluasi apakah respon berasal dari fallback/lokal akibat HTTP 503
+      if (featRes?.isFallback || featRes?.source === "local") {
+        setIsFallbackMode(true);
+      } else {
+        setIsFallbackMode(false);
+      }
+    } catch (err) {
+      if (
+        err?.name === "AbortError" ||
+        err?.name === "CanceledError" ||
+        err?.code === "ERR_CANCELED"
+      ) {
+        return;
+      }
+      console.error("[Home] Error tidak terduga saat memuat data:", err);
+      setIsFallbackMode(true);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      const [featRes, regRes] = await Promise.all([fetchFeatured(), fetchRegions()]);
-      if (!cancelled) {
-        setFeatured((featRes.data || []).slice(0, 4));
-        setRegions(regRes.data || []);
-      }
-    })();
+    const controller = new AbortController();
+    loadData(controller.signal);
+
     return () => {
-      cancelled = true;
+      controller.abort();
     };
-  }, []);
+  }, [loadData]);
+
+  const handleRetry = () => {
+    const controller = new AbortController();
+    loadData(controller.signal);
+  };
 
   const trustItems = [
     { icon: ShieldCheck, title: t("trust_authentic"), desc: t("trust_authentic_desc") },
@@ -71,14 +109,14 @@ export default function Home() {
         </div>
         <div className="trust">
           <div className="trust__container">
-            {trustItems.map((item) => (
-              <div key={item.title} className="trust__item">
+            {(trustItems ?? []).map((item) => (
+              <div key={item?.title ?? Math.random()} className="trust__item">
                 <div className="trust__icon">
-                  <item.icon size={20} strokeWidth={1.75} />
+                  {item?.icon && <item.icon size={20} strokeWidth={1.75} />}
                 </div>
                 <div>
-                  <h3>{item.title}</h3>
-                  <p>{item.desc}</p>
+                  <h3>{item?.title ?? ""}</h3>
+                  <p>{item?.desc ?? ""}</p>
                 </div>
               </div>
             ))}
@@ -90,8 +128,8 @@ export default function Home() {
         <div className="container">
           <SectionTitle title={t("section_featured")} actionLabel={t("section_see_all")} actionTo="/collections" />
           <div className="product-grid">
-            {featured.map((product) => (
-              <ProductCard key={product.id} product={product} />
+            {(featured ?? []).map((product) => (
+              <ProductCard key={product?.id ?? Math.random()} product={product} />
             ))}
           </div>
         </div>
@@ -101,8 +139,8 @@ export default function Home() {
         <div className="container">
           <SectionTitle title={t("section_regions")} subtitle={t("section_regions_sub")} actionLabel={t("section_see_all")} actionTo="/regions" />
           <div className="region-cards-grid">
-            {regions.map((region) => (
-              <RegionCard key={region.id} region={region} />
+            {(regions ?? []).map((region) => (
+              <RegionCard key={region?.id ?? Math.random()} region={region} />
             ))}
           </div>
         </div>
@@ -116,11 +154,11 @@ export default function Home() {
             align="center"
           />
           <div className="why__grid">
-            {whyItems.map((item) => (
-              <div key={item.num} className="why__card">
-                <div className="why__num">{item.num}</div>
-                <h3>{item.title}</h3>
-                <p>{item.desc}</p>
+            {(whyItems ?? []).map((item) => (
+              <div key={item?.num ?? Math.random()} className="why__card">
+                <div className="why__num">{item?.num ?? ""}</div>
+                <h3>{item?.title ?? ""}</h3>
+                <p>{item?.desc ?? ""}</p>
               </div>
             ))}
           </div>

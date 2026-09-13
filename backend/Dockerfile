@@ -11,34 +11,32 @@ RUN apt-get update && apt-get install -y \
     curl \
     && docker-php-ext-install pdo_mysql gd
 
-# 2. Paksa matikan semua modul MPM yang bentrok, lalu aktifkan prefork secara bersih
-# Paksa matikan dan hapus modul MPM event/worker, lalu buat symlink prefork dengan aman
-RUN rm -f /etc/apache2/mods-enabled/mpm_event.load \
-    && rm -f /etc/apache2/mods-enabled/mpm_event.conf \
-    && rm -f /etc/apache2/mods-enabled/mpm_worker.load \
-    && rm -f /etc/apache2/mods-enabled/mpm_worker.conf \
-    && rm -f /etc/apache2/mods-enabled/mpm_prefork.load \
-    && rm -f /etc/apache2/mods-enabled/mpm_prefork.conf \
-    && ln -s /etc/apache2/mods-available/mpm_prefork.load /etc/apache2/mods-enabled/ \
-    && ln -s /etc/apache2/mods-available/mpm_prefork.conf /etc/apache2/mods-enabled/
-# 3. Arahkan Document Root Apache langsung ke folder public Laravel
+# 2. Hapus total seluruh modul MPM dari direktori enabled secara paksa
+RUN rm -f /etc/apache2/mods-enabled/mpm_*.load /etc/apache2/mods-enabled/mpm_*.conf
+
+# 3. Aktifkan hanya mpm_prefork secara bersih lewat symlink baru
+RUN ln -s /etc/apache2/mods-available/mpm_prefork.load /etc/apache2/mods-enabled/ \
+    && ln -s /etc/apache2/mods-available/mpm_prefork.conf /etc/apache2/mods-enabled/ \
+    && a2enmod rewrite
+
+# 4. Arahkan Document Root Apache langsung ke folder public Laravel
 ENV APACHE_DOCUMENT_ROOT /var/www/html/public
 RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-available/*.conf
 RUN sed -ri -e 's!/var/www/!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf /etc/apache2/conf-available/*.conf
 
-# 4. Install Composer terbaru
+# 5. Install Composer terbaru
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
-# 5. Set working directory
+# 6. Set working directory
 WORKDIR /var/www/html
 
-# 6. Salin semua file project
+# 7. Salin semua file project ke dalam container
 COPY . /var/www/html
 
-# 7. Install vendor Laravel via Composer
+# 8. Install dependencies composer tanpa dev
 RUN composer install --no-dev --optimize-autoloader
 
-# 8. Berikan izin akses folder storage dan cache
+# 9. Berikan izin akses folder storage dan cache Laravel
 RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache \
     && chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
 

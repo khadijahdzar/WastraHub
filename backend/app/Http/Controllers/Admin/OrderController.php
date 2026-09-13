@@ -5,28 +5,41 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class OrderController extends Controller
 {
     /**
      * GET /api/admin/orders
-     * Semua order + shape yang selaras frontend admin.
+     * Semua order + shape yang selaras frontend admin (Global fetch untuk multi-device).
      */
     public function index()
     {
-        $orders = Order::with([
-            'user',
-            'orderDetails.product',
-            'payment',
-        ])
-            ->latest()
-            ->get()
-            ->map(fn (Order $order) => $this->transform($order));
+        try {
+            $orders = Order::with([
+                'user',
+                'orderDetails.product',
+                'payment',
+            ])
+                ->latest()
+                ->get()
+                ->map(fn (Order $order) => $this->transform($order));
 
-        return response()->json([
-            'data'  => $orders,
-            'total' => $orders->count(),
-        ]);
+            return response()->json([
+                'success' => true,
+                'message' => 'Data semua pesanan berhasil dimuat.',
+                'data'    => $orders,
+                'total'   => $orders->count(),
+            ], 200);
+
+        } catch (\Exception $e) {
+            Log::error('Admin Order Index Error: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Terjadi kesalahan pada server saat memuat data pesanan.',
+            ], 500);
+        }
     }
 
     /**
@@ -34,15 +47,24 @@ class OrderController extends Controller
      */
     public function show($id)
     {
-        $order = Order::with([
-            'user',
-            'orderDetails.product',
-            'payment',
-        ])->findOrFail($id);
+        try {
+            $order = Order::with([
+                'user',
+                'orderDetails.product',
+                'payment',
+            ])->findOrFail($id);
 
-        return response()->json([
-            'data' => $this->transform($order),
-        ]);
+            return response()->json([
+                'success' => true,
+                'data'    => $this->transform($order),
+            ], 200);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Detail pesanan tidak ditemukan.',
+            ], 404);
+        }
     }
 
     /**
@@ -54,27 +76,38 @@ class OrderController extends Controller
             'status' => 'required|in:pending,paid,processing,shipped,completed,cancelled',
         ]);
 
-        $order = Order::with(['payment'])->findOrFail($id);
-        $order->update(['status' => $request->status]);
+        try {
+            $order = Order::with(['payment'])->findOrFail($id);
+            $order->update(['status' => $request->status]);
 
-        // Sinkron payment bila ada
-        if ($request->status === 'paid' && $order->payment) {
-            $order->payment->update([
-                'status'  => 'paid',
-                'paid_at' => now(),
-            ]);
+            // Sinkron payment bila ada
+            if ($request->status === 'paid' && $order->payment) {
+                $order->payment->update([
+                    'status'  => 'paid',
+                    'paid_at' => now(),
+                ]);
+            }
+
+            if ($request->status === 'cancelled' && $order->payment) {
+                $order->payment->update(['status' => 'refunded']);
+            }
+
+            $order->load(['user', 'orderDetails.product', 'payment']);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Status order berhasil diperbarui',
+                'data'    => $this->transform($order),
+            ], 200);
+
+        } catch (\Exception $e) {
+            Log::error('Admin Order Update Status Error: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal memperbarui status pesanan.',
+            ], 500);
         }
-
-        if ($request->status === 'cancelled' && $order->payment) {
-            $order->payment->update(['status' => 'refunded']);
-        }
-
-        $order->load(['user', 'orderDetails.product', 'payment']);
-
-        return response()->json([
-            'message' => 'Status order berhasil diperbarui',
-            'data'    => $this->transform($order),
-        ]);
     }
 
     /**
@@ -82,19 +115,29 @@ class OrderController extends Controller
      */
     public function destroy($id)
     {
-        $order = Order::findOrFail($id);
+        try {
+            $order = Order::findOrFail($id);
 
-        if (!in_array($order->status, ['completed', 'cancelled'], true)) {
+            if (!in_array($order->status, ['completed', 'cancelled'], true)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Hanya pesanan selesai atau dibatalkan yang dapat dihapus.',
+                ], 422);
+            }
+
+            $order->delete();
+
             return response()->json([
-                'message' => 'Hanya pesanan selesai atau dibatalkan yang dapat dihapus.',
-            ], 422);
+                'success' => true,
+                'message' => 'Riwayat pesanan berhasil dihapus.',
+            ], 200);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal menghapus riwayat pesanan.',
+            ], 500);
         }
-
-        $order->delete();
-
-        return response()->json([
-            'message' => 'Riwayat pesanan berhasil dihapus.',
-        ]);
     }
 
     /**

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
@@ -14,26 +15,40 @@ class AuthController extends Controller
      */
     public function register(Request $request)
     {
-        $data = $request->validate([
-            'name'                  => 'required|string|max:255',
-            'email'                 => 'required|email|unique:users,email',
-            'password'              => 'required|string|min:6',
-            'password_confirmation' => 'nullable|string|same:password',
-        ]);
+        try {
+            $data = $request->validate([
+                'name'                  => 'required|string|max:255',
+                'email'                 => 'required|email|unique:users,email',
+                'password'              => 'required|string|min:6',
+                'password_confirmation' => 'nullable|string|same:password',
+            ]);
 
-        $user = User::create([
-            'name'     => $data['name'],
-            'email'    => $data['email'],
-            'password' => Hash::make($data['password']),
-            'role'     => 'user',
-        ]);
+            $user = User::create([
+                'name'     => $data['name'],
+                'email'    => $data['email'],
+                'password' => Hash::make($data['password']),
+                'role'     => 'user',
+            ]);
 
-        $token = $user->createToken('auth_token')->plainTextToken;
+            // Token dinamis per device untuk registrasi
+            $deviceName = $request->header('User-Agent') ?? 'unknown-device';
+            $token = $user->createToken($deviceName)->plainTextToken;
 
-        return response()->json([
-            'user'  => $user,
-            'token' => $token,
-        ], 201);
+            return response()->json([
+                'success' => true,
+                'message' => 'Registrasi berhasil.',
+                'user'    => $user,
+                'token'   => $token,
+            ], 201);
+
+        } catch (\Exception $e) {
+            Log::error('Register Error: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Terjadi kesalahan saat registrasi.',
+            ], 500);
+        }
     }
 
     /**
@@ -54,12 +69,27 @@ class AuthController extends Controller
             ]);
         }
 
-        $token = $user->createToken('auth_token')->plainTextToken;
+        try {
+            // Gunakan User-Agent sebagai nama token supaya multi-device (Laptop & HP) 
+            // punya token terpisah yang unik dan tidak saling menimpa.
+            $deviceName = $request->header('User-Agent') ?? 'unknown-device';
+            $token = $user->createToken($deviceName)->plainTextToken;
 
-        return response()->json([
-            'user'  => $user,
-            'token' => $token,
-        ]);
+            return response()->json([
+                'success' => true,
+                'message' => 'Login berhasil.',
+                'user'    => $user,
+                'token'   => $token,
+            ], 200);
+
+        } catch (\Exception $e) {
+            Log::error('Login Error: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Terjadi kesalahan pada server saat login.',
+            ], 500);
+        }
     }
 
     /**
@@ -67,10 +97,22 @@ class AuthController extends Controller
      */
     public function logout(Request $request)
     {
-        $request->user()->currentAccessToken()->delete();
+        try {
+            // Hapus token aktif di device yang sedang melakukan request logout
+            $request->user()->currentAccessToken()->delete();
 
-        return response()->json([
-            'message' => 'Logged out',
-        ]);
+            return response()->json([
+                'success' => true,
+                'message' => 'Berhasil logout.',
+            ], 200);
+
+        } catch (\Exception $e) {
+            Log::error('Logout Error: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal melakukan logout.',
+            ], 500);
+        }
     }
 }

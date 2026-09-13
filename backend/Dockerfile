@@ -31,5 +31,8 @@ RUN composer install --no-dev --optimize-autoloader
 # Set permissions
 RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
 
+# Disable default conflicting MPM modules and enable event/prefork cleanly
+RUN a2dismod mpm_event mpm_worker && a2enmod mpm_prefork
+
 # Expose port 80
 EXPOSE 80

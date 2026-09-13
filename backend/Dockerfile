@@ -23,11 +23,14 @@ COPY . /var/www/html
 # Install dependencies
 RUN composer install --no-dev --optimize-autoloader
 
-# Set permissions
-RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache \
+# Pastikan folder cache/storage wajib ada dan berikan izin akses penuh ke www-data
+RUN mkdir -p /var/www/html/storage/framework/views \
+    && mkdir -p /var/www/html/storage/framework/cache \
+    && mkdir -p /var/www/html/storage/framework/sessions \
+    && chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache \
     && chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
 
-# Expose port (Railway default port 8080 atau 80)
+# Expose port (Railway default port 8080)
 EXPOSE 8080
 
 # Jalankan Laravel pakai built-in server bawaan PHP, tembak langsung ke folder public

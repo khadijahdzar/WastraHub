@@ -1,6 +1,6 @@
 FROM php:8.3-apache
 
-# Install system dependencies & pdo_mysql
+# 1. Install ekstensi dasar PHP dan dependensi sistem
 RUN apt-get update && apt-get install -y \
     libpng-dev \
     libjpeg-dev \
@@ -11,29 +11,32 @@ RUN apt-get update && apt-get install -y \
     curl \
     && docker-php-ext-install pdo_mysql gd
 
-# Fix Apache MPM conflict by explicitly disabling event and enabling prefork
-RUN sed -i 's/LoadModule mpm_event_module/#LoadModule mpm_event_module/g' /etc/apache2/httpd.conf || true
-RUN a2dismod mpm_event mpm_worker 2>/dev/null || true
-RUN a2enmod mpm_prefork rewrite
+# 2. Paksa matikan semua modul MPM yang bentrok, lalu aktifkan prefork secara bersih
+RUN rm -f /etc/apache2/mods-enabled/mpm_event.load \
+    && rm -f /etc/apache2/mods-enabled/mpm_event.conf \
+    && rm -f /etc/apache2/mods-enabled/mpm_worker.load \
+    && rm -f /etc/apache2/mods-enabled/mpm_worker.conf \
+    && ln -s /etc/apache2/mods-available/mpm_prefork.load /etc/apache2/mods-enabled/ \
+    && ln -s /etc/apache2/mods-available/mpm_prefork.conf /etc/apache2/mods-enabled/
 
-# Point Apache document root to Laravel public folder
+# 3. Arahkan Document Root Apache langsung ke folder public Laravel
 ENV APACHE_DOCUMENT_ROOT /var/www/html/public
 RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-available/*.conf
 RUN sed -ri -e 's!/var/www/!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf /etc/apache2/conf-available/*.conf
 
-# Get latest Composer
+# 4. Install Composer terbaru
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
-# Set working directory
+# 5. Set working directory
 WORKDIR /var/www/html
 
-# Copy application files
+# 6. Salin semua file project
 COPY . /var/www/html
 
-# Install composer dependencies
+# 7. Install vendor Laravel via Composer
 RUN composer install --no-dev --optimize-autoloader
 
-# Set permissions for Laravel storage and cache
+# 8. Berikan izin akses folder storage dan cache
 RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache \
     && chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
 

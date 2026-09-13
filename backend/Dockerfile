@@ -34,4 +34,4 @@ RUN mkdir -p /var/www/html/storage/framework/views \
 EXPOSE 8080
 
 # Jalankan Laravel pakai built-in server bawaan PHP, tembak langsung ke folder public
-CMD ["php", "-S", "0.0.0.0:8080", "-t", "public"]
+CMD php artisan migrate --force && php -S 0.0.0.0:8080 -t public

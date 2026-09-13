@@ -11,10 +11,11 @@ RUN apt-get update && apt-get install -y \
     curl \
     && docker-php-ext-install pdo_mysql gd
 
-# 2. Hapus total seluruh modul MPM dari direktori enabled secara paksa
+# 2. Copot seluruh modul MPM bawaan dan bersihkan file konfigurasinya secara total
+RUN a2dismod -f mpm_event mpm_worker mpm_prefork 2>/dev/null || true
 RUN rm -f /etc/apache2/mods-enabled/mpm_*.load /etc/apache2/mods-enabled/mpm_*.conf
 
-# 3. Aktifkan hanya mpm_prefork secara bersih lewat symlink baru
+# 3. Paksa aktifkan hanya mpm_prefork dan modul rewrite
 RUN ln -s /etc/apache2/mods-available/mpm_prefork.load /etc/apache2/mods-enabled/ \
     && ln -s /etc/apache2/mods-available/mpm_prefork.conf /etc/apache2/mods-enabled/ \
     && a2enmod rewrite
@@ -30,7 +31,7 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 # 6. Set working directory
 WORKDIR /var/www/html
 
-# 7. Salin semua file project ke dalam container
+# 7. Salin seluruh file project
 COPY . /var/www/html
 
 # 8. Install dependencies composer tanpa dev

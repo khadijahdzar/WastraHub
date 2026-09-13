@@ -27,11 +27,31 @@ const STATUS_FLOW = [
 const STATUS_CLASS = {
   pending: "pending",
   unpaid: "pending",
+  "belum dibayar": "pending",
+  "belum-dibayar": "pending",
   paid: "paid",
+  "sudah dibayar": "paid",
   processing: "processing",
+  diproses: "processing",
   shipped: "shipped",
+  dikirim: "shipped",
   completed: "completed",
+  selesai: "completed",
   cancelled: "cancelled",
+  dibatalkan: "cancelled",
+};
+
+// Helper normalisasi agar string bahasa Indonesia & Inggris klop di backend/frontend
+const normalizeStatus = (status) => {
+  if (!status) return "pending";
+  const s = String(status).toLowerCase().trim();
+  if (s.includes("belum dibayar") || s === "unpaid" || s === "pending") return "pending";
+  if (s.includes("sudah dibayar") || s === "paid") return "paid";
+  if (s.includes("proses") || s === "processing") return "processing";
+  if (s.includes("kirim") || s === "shipped") return "shipped";
+  if (s.includes("selesai") || s === "completed") return "completed";
+  if (s.includes("batal") || s === "cancelled") return "cancelled";
+  return s;
 };
 
 export default function Orders() {
@@ -48,7 +68,7 @@ export default function Orders() {
       const res = await adminFetchOrders();
       setOrders(res.data || []);
     } catch (err) {
-      setError(err.message);
+      setError(err.message || "Gagal memuat data pesanan.");
     } finally {
       setLoading(false);
     }
@@ -73,65 +93,81 @@ export default function Orders() {
   }, [load]);
 
   const onStatus = async (id, status) => {
+    // Simpan state sebelumnya untuk rollback jika API gagal
+    const previousOrders = [...orders];
+
+    // Update state lokal sementara agar UI langsung responsif
     setOrders((prev) =>
-      prev.map((o) => (String(o.id) === String(id) ? { ...o, status } : o))
+      prev.map((o) => (String(o.id || o._id) === String(id) ? { ...o, status } : o))
     );
+
     try {
+      // Panggil API update status dengan ID yang aman (bisa id atau _id)
       await adminUpdateOrderStatus(id, status);
       window.dispatchEvent(new CustomEvent("wastrahub:orders-updated"));
     } catch (err) {
-      alert(err.message);
-      load();
+      // Rollback state jika terjadi error agar tidak nyangkut/loading terus
+      setOrders(previousOrders);
+      alert("Gagal memperbarui status: " + (err.message || "Terjadi kesalahan server"));
     }
   };
 
   const removeOrder = async (order) => {
-    const status = String(order.status || "").toLowerCase();
-    if (!["completed", "cancelled"].includes(status)) return;
-    if (
-      !window.confirm(
-        "Hapus riwayat pesanan ini? Data tidak dapat dipulihkan."
-      )
-    )
+    if (!order) return;
+    const orderId = order.id || order._id;
+    const st = normalizeStatus(order.status);
+
+    if (!["completed", "cancelled", "selesai", "dibatalkan"].includes(st)) {
+      alert("Pesanan yang belum selesai atau dibatalkan tidak dapat dihapus.");
       return;
+    }
+
+    if (!window.confirm("Hapus riwayat pesanan ini? Data tidak dapat dipulihkan.")) {
+      return;
+    }
 
     try {
-      await adminDeleteOrder(order);
+      await adminDeleteOrder(orderId);
       setOrders((previous) =>
-        previous.filter((item) => String(item.id) !== String(order.id))
+        previous.filter((item) => String(item.id || item._id) !== String(orderId))
       );
       window.dispatchEvent(new CustomEvent("wastrahub:orders-updated"));
     } catch (err) {
-      alert(err.message);
+      alert("Gagal menghapus pesanan: " + (err.message || "Terjadi kesalahan server"));
     }
   };
 
   const itemLabel = (o) => {
-    if (o.details?.length) {
-      return o.details
-        .map((d) => d.product?.name || `Produk #${d.product_id}`)
-        .join(", ");
-    }
-    if (o.items?.length) {
-      return o.items
-        .map((d) => d.name || d.product?.name || "Item")
-        .join(", ");
+    try {
+      if (Array.isArray(o?.details) && o.details.length > 0) {
+        return o.details
+          .map((d) => d?.product?.name || `Produk #${d?.product_id || "Item"}`)
+          .join(", ");
+      }
+      if (Array.isArray(o?.items) && o.items.length > 0) {
+        return o.items
+          .map((d) => d?.name || d?.product?.name || "Item")
+          .join(", ");
+      }
+    } catch {
+      // Fallback aman
     }
     return "—";
   };
 
-  const needShip = orders.filter((o) =>
-    ["pending", "unpaid", "paid", "processing"].includes(
-      String(o.status || "").toLowerCase()
-    )
-  );
+  const needShip = orders.filter((o) => {
+    const st = normalizeStatus(o.status);
+    return ["pending", "paid", "processing", "shipped"].includes(st);
+  });
+
+  const pendingCount = orders.filter((o) => normalizeStatus(o.status) === "pending").length;
 
   const filtered =
     filter === "all"
       ? orders
       : filter === "need_ship"
         ? needShip
-        : orders.filter((o) => String(o.status).toLowerCase() === filter);
+        : orders.filter((o) => normalizeStatus(o.status) === filter);
 
   const handlePrint = (o) => {
     const items = itemLabel(o);
@@ -149,6 +185,7 @@ export default function Orders() {
     const date = o.created_at
       ? new Date(o.created_at).toLocaleString("id-ID")
       : "—";
+    
     w.document.write(`<!DOCTYPE html><html><head><title>Struk ${code}</title>
 <style>
   @page { size: A4 portrait; margin: 12mm; }
@@ -221,13 +258,7 @@ export default function Orders() {
             className={`admin-chip ${filter === "pending" ? "active" : ""}`}
             onClick={() => setFilter("pending")}
           >
-            Belum Dibayar (
-            {
-              orders.filter(
-                (o) => String(o.status || "").toLowerCase() === "pending"
-              ).length
-            }
-            )
+            Belum Dibayar ({pendingCount})
           </button>
           <button
             type="button"
@@ -282,15 +313,16 @@ export default function Orders() {
                 </tr>
               ) : (
                 filtered.map((o) => {
-                  const st = String(o.status || "pending").toLowerCase();
-                  const isNeed = ["paid", "processing"].includes(st);
+                  const st = normalizeStatus(o.status);
+                  const isNeed = ["paid", "processing", "shipped"].includes(st);
+                  const orderId = o.id || o._id;
                   return (
                     <tr
-                      key={o.id}
+                      key={orderId}
                       className={isNeed ? "row-highlight" : undefined}
                     >
                       <td>
-                        <strong>{o.order_number || o.id}</strong>
+                        <strong>{o.order_number || orderId}</strong>
                       </td>
                       <td>
                         <div className="admin-cell-stack">
@@ -314,11 +346,9 @@ export default function Orders() {
                           value={
                             STATUS_FLOW.some((s) => s.value === st)
                               ? st
-                              : st === "unpaid"
-                                ? "pending"
-                                : st
+                              : "pending"
                           }
-                          onChange={(e) => onStatus(o.id, e.target.value)}
+                          onChange={(e) => onStatus(orderId, e.target.value)}
                         >
                           {STATUS_FLOW.map((s) => (
                             <option key={s.value} value={s.value}>

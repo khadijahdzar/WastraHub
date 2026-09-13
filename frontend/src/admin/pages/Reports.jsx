@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { RefreshCw } from "lucide-react";
-import { adminFetchReports } from "../../services/adminService";
+import { adminFetchReports, adminFetchOrders } from "../../services/adminService";
 import { useLanguage } from "../../context/LanguageContext";
 import "../admin.css";
 
@@ -10,6 +10,7 @@ const formatRupiah = (n) =>
 export default function Reports() {
   const { t } = useLanguage();
   const [report, setReport] = useState(null);
+  const [ordersFallback, setOrdersFallback] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const hasReport = useRef(false);
@@ -20,9 +21,14 @@ export default function Reports() {
     setLoading(!hasReport.current);
     setError("");
     try {
-      const response = await adminFetchReports();
+      const [repRes, ordRes] = await Promise.all([
+        adminFetchReports().catch(() => ({ data: {} })),
+        adminFetchOrders().catch(() => ({ data: [] }))
+      ]);
       if (currentRequest !== requestId.current) return;
-      setReport(response.data || {});
+      
+      setReport(repRes.data || {});
+      setOrdersFallback(ordRes.data || []);
       hasReport.current = true;
     } catch (err) {
       if (currentRequest === requestId.current) setError(err.message);
@@ -47,9 +53,23 @@ export default function Reports() {
     };
   }, [load]);
 
-  const rows = report?.daily_sales || report?.dailySales || [];
-  const total = Number(report?.total_revenue ?? report?.revenue ?? 0);
-  const totalOrders = Number(report?.total_orders ?? report?.orders ?? 0);
+  let rows = report?.daily_sales || report?.dailySales || [];
+  if ((!rows || rows.length === 0) && ordersFallback.length > 0) {
+    const mapByDate = {};
+    ordersFallback.forEach(o => {
+      const dateStr = o.created_at ? new Date(o.created_at).toISOString().split('T')[0] : "Hari ini";
+      if (!mapByDate[dateStr]) {
+        mapByDate[dateStr] = { date: dateStr, orders: 0, revenue: 0 };
+      }
+      mapByDate[dateStr].orders += 1;
+      mapByDate[dateStr].revenue += Number(o.total_amount ?? o.total ?? 0);
+    });
+    rows = Object.values(mapByDate);
+  }
+
+  const total = Number(report?.total_revenue ?? report?.revenue ?? ordersFallback.reduce((acc, o) => acc + Number(o.total_amount ?? o.total ?? 0), 0));
+  const totalOrders = Number(report?.total_orders ?? report?.orders ?? ordersFallback.length);
+
   return (
     <>
       <div className="admin-stats">
@@ -69,8 +89,8 @@ export default function Reports() {
             <thead><tr><th>{t("admin_date")}</th><th>Order</th><th>{t("admin_revenue")}</th></tr></thead>
             <tbody>
               {!loading && rows.length === 0 && <tr><td colSpan="3">Belum ada data penjualan.</td></tr>}
-              {!loading && rows.map((r) => (
-                <tr key={r.date}><td>{r.date}</td><td>{r.orders}</td><td>{formatRupiah(r.revenue)}</td></tr>
+              {!loading && rows.map((r, idx) => (
+                <tr key={r.date || idx}><td>{r.date}</td><td>{r.orders}</td><td>{formatRupiah(r.revenue)}</td></tr>
               ))}
             </tbody>
           </table>

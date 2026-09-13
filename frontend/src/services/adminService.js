@@ -29,8 +29,8 @@ function normalizeAdminProduct(product) {
     rawImage.startsWith("data:")
       ? rawImage
       : rawImage
-        ? `/images/products/${rawImage}`
-        : "";
+      ? `/images/products/${rawImage}`
+      : "";
   return { ...product, image, image_url: product.image_url || image };
 }
 
@@ -47,6 +47,24 @@ function mergeProductsById(...lists) {
   return Array.from(map.values()).sort((a, b) => Number(b.id) - Number(a.id));
 }
 
+// Helper internal untuk membaca dan menulis admin products ke localStorage
+function readLocalAdminProducts() {
+  try {
+    const stored = JSON.parse(localStorage.getItem("wastrahub_admin_products") || "[]");
+    return Array.isArray(stored) ? stored : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeLocalAdminProducts(productsList) {
+  try {
+    localStorage.setItem("wastrahub_admin_products", JSON.stringify(productsList));
+  } catch (err) {
+    console.error("Gagal menyimpan produk ke localStorage:", err);
+  }
+}
+
 /* ========== PRODUCTS ========== */
 
 export async function adminFetchProducts() {
@@ -59,13 +77,7 @@ export async function adminFetchProducts() {
     source = "local";
   }
 
-  let extra = [];
-  try {
-    extra = JSON.parse(localStorage.getItem("wastrahub_admin_products") || "[]");
-  } catch {
-    extra = [];
-  }
-
+  const extra = readLocalAdminProducts();
   const merged = mergeProductsById(apiList, extra, localProducts);
   return { data: merged, source, total: merged.length };
 }
@@ -73,27 +85,77 @@ export async function adminFetchProducts() {
 export async function adminCreateProduct(payload) {
   try {
     const res = await api.post("/admin/products", payload);
-    return { data: normalizeAdminProduct(unwrapOne(res)), source: "api" };
+    const createdApi = normalizeAdminProduct(unwrapOne(res));
+    
+    // Simpan juga ke localStorage agar sinkron jika kedepannya offline/fallback
+    const currentLocal = readLocalAdminProducts();
+    writeLocalAdminProducts([createdApi, ...currentLocal]);
+
+    return { data: createdApi, source: "api" };
   } catch {
-    const created = normalizeAdminProduct({ id: Date.now(), ...payload, rating: 5, reviews: 0 });
-    return { data: created, source: "local" };
+    // Fallback Local: Buat ID unik, normalisasi, dan simpan permanen ke localStorage
+    const createdLocal = normalizeAdminProduct({ 
+      id: Date.now(), 
+      ...payload, 
+      rating: payload.rating || 5, 
+      reviews: payload.reviews || 0 
+    });
+    
+    const currentLocal = readLocalAdminProducts();
+    writeLocalAdminProducts([createdLocal, ...currentLocal]);
+
+    return { data: createdLocal, source: "local" };
   }
 }
 
 export async function adminUpdateProduct(id, payload) {
   try {
     const res = await api.put(`/admin/products/${id}`, payload);
-    return { data: normalizeAdminProduct(unwrapOne(res)), source: "api" };
+    const updatedApi = normalizeAdminProduct(unwrapOne(res));
+
+    // Perbarui juga di localStorage
+    const currentLocal = readLocalAdminProducts();
+    const index = currentLocal.findIndex(p => String(p.id) === String(id));
+    if (index >= 0) {
+      currentLocal[index] = { ...currentLocal[index], ...updatedApi };
+      writeLocalAdminProducts(currentLocal);
+    } else {
+      writeLocalAdminProducts([updatedApi, ...currentLocal]);
+    }
+
+    return { data: updatedApi, source: "api" };
   } catch {
-    return { data: normalizeAdminProduct({ id, ...payload }), source: "local" };
+    const updatedLocal = normalizeAdminProduct({ id, ...payload });
+    const currentLocal = readLocalAdminProducts();
+    const index = currentLocal.findIndex(p => String(p.id) === String(id));
+    
+    if (index >= 0) {
+      currentLocal[index] = { ...currentLocal[index], ...updatedLocal };
+    } else {
+      currentLocal.unshift(updatedLocal);
+    }
+    writeLocalAdminProducts(currentLocal);
+
+    return { data: updatedLocal, source: "local" };
   }
 }
 
 export async function adminDeleteProduct(id) {
   try {
     await api.delete(`/admin/products/${id}`);
+    
+    // Hapus juga dari localStorage agar tidak muncul kembali saat refresh
+    const currentLocal = readLocalAdminProducts();
+    const filtered = currentLocal.filter(p => String(p.id) !== String(id));
+    writeLocalAdminProducts(filtered);
+
     return { source: "api" };
   } catch {
+    // Hapus dari localStorage pada mode local/fallback
+    const currentLocal = readLocalAdminProducts();
+    const filtered = currentLocal.filter(p => String(p.id) !== String(id));
+    writeLocalAdminProducts(filtered);
+
     return { source: "local" };
   }
 }
@@ -139,7 +201,7 @@ export async function adminFetchStats() {
 
   const { data: allOrders } = await adminFetchOrders();
   const revenue = allOrders
-    .filter((o) => o.status !== "batal")
+    .filter((o) => o.status !== "batal" && o.status !== "cancelled")
     .reduce((sum, o) => sum + Number(o.total_amount || 0), 0);
 
   const customers = new Set(allOrders.map((o) => o.customer_name || o.phone).filter(Boolean)).size;
@@ -176,33 +238,53 @@ export async function adminFetchReports() {
 }
 
 export async function adminUpdateOrderStatus(id, status) {
-  const nextStatus = mapOrderStatus(status);
+  const rawStatus = String(status).toLowerCase().trim();
+  const nextStatus = mapOrderStatus ? mapOrderStatus(status) : rawStatus;
+  
   try {
-    const res = await api.patch(`/admin/orders/${id}/status`, { status: nextStatus });
+    const res = await api.patch(`/admin/orders/${id}/status`, { status: rawStatus });
     const prev = readLocalOrders();
-    const idx = prev.findIndex((o) => String(o.id) === String(id));
+    const idx = prev.findIndex((o) => String(o.id || o._id) === String(id));
     if (idx >= 0) {
-      prev[idx].status = nextStatus;
+      prev[idx].status = rawStatus;
       writeLocalOrders(prev);
     }
     return { data: unwrapOne(res), source: "api" };
-  } catch {
-    const prev = readLocalOrders();
-    const idx = prev.findIndex((o) => String(o.id) === String(id));
-    if (idx >= 0) {
-      prev[idx].status = nextStatus;
-      writeLocalOrders(prev);
+  } catch (apiErr) {
+    try {
+      const resAlt = await api.patch(`/admin/orders/${id}/status`, { status: nextStatus });
+      const prev = readLocalOrders();
+      const idx = prev.findIndex((o) => String(o.id || o._id) === String(id));
+      if (idx >= 0) {
+        prev[idx].status = nextStatus;
+        writeLocalOrders(prev);
+      }
+      return { data: unwrapOne(resAlt), source: "api" };
+    } catch {
+      const prev = readLocalOrders();
+      const idx = prev.findIndex((o) => String(o.id || o._id) === String(id));
+      if (idx >= 0) {
+        prev[idx].status = rawStatus;
+        writeLocalOrders(prev);
+      }
+      return { data: { id, status: rawStatus }, source: "local" };
     }
-    return { data: { id, status: nextStatus }, source: "local" };
   }
 }
 
 export async function adminDeleteOrder(order) {
-  const id = typeof order === "object" ? order.id : order;
+  const id = typeof order === "object" ? order?.id || order?._id : order;
+  
   try {
     await api.delete(`/admin/orders/${id}`);
+    const prev = readLocalOrders();
+    const filtered = prev.filter((o) => String(o.id || o._id) !== String(id));
+    writeLocalOrders(filtered);
     return { source: "api" };
   } catch {
+    const prev = readLocalOrders();
+    const filtered = prev.filter((o) => String(o.id || o._id) !== String(id));
+    writeLocalOrders(filtered);
     return { source: "local" };
   }
 }
@@ -230,8 +312,8 @@ export async function adminApproveReview(id) {
 
 export async function adminDeleteReview(id) {
   try {
-    await api.delete(`/admin/reviews/${id}`);
-    return { source: "api" };
+    const apiRes = await api.delete(`/admin/reviews/${id}`);
+    return { data: apiRes, source: "api" };
   } catch {
     return { source: "local" };
   }

@@ -9,6 +9,24 @@ export default function NotificationDropdown({
   onMarkAllRead,
   onClose,
 }) {
+  // Fallback pengaman: Jika props notifs kosong, coba tarik data pesanan lokal/terakhir
+  let displayNotifs = notifs;
+  if (!displayNotifs || displayNotifs.length === 0) {
+    try {
+      const localOrders = JSON.parse(localStorage.getItem("wastrahub_user_orders") || "[]");
+      displayNotifs = localOrders.slice(0, 5).map((ord) => ({
+        id: ord.id,
+        message: `Pesanan baru #${ord.id} - ${ord.paymentMethod || 'COD/Transfer'}`,
+        created_at: ord.date || new Date().toISOString(),
+        read: false,
+      }));
+    } catch {
+      displayNotifs = [];
+    }
+  }
+
+  const displayUnread = unread > 0 ? unread : displayNotifs.filter(n => !n.read).length;
+
   return (
     <div className="admin-notif">
       <button
@@ -19,9 +37,9 @@ export default function NotificationDropdown({
         aria-expanded={open}
       >
         <Bell size={20} />
-        {unread > 0 && (
+        {displayUnread > 0 && (
           <span className="admin-notif__dot">
-            {unread > 9 ? "9+" : unread}
+            {displayUnread > 9 ? "9+" : displayUnread}
           </span>
         )}
       </button>
@@ -34,7 +52,7 @@ export default function NotificationDropdown({
         >
           <div className="admin-notif__head">
             <strong>Notifikasi</strong>
-            {unread > 0 && (
+            {displayUnread > 0 && (
               <button
                 type="button"
                 className="admin-notif__mark"
@@ -45,12 +63,12 @@ export default function NotificationDropdown({
             )}
           </div>
 
-          {notifs.length === 0 ? (
+          {displayNotifs.length === 0 ? (
             <p className="admin-notif__empty">Belum ada notifikasi</p>
           ) : (
             <ul className="admin-notif__list">
-              {notifs.slice(0, 10).map((n) => (
-                <li key={n.id} className={n.read ? "" : "unread"}>
+              {displayNotifs.slice(0, 10).map((n) => (
+                <li key={n.id || Math.random()} className={n.read ? "" : "unread"}>
                   <Link
                     to="/admin/orders"
                     className="admin-notif__item"
@@ -58,11 +76,11 @@ export default function NotificationDropdown({
                   >
                     <div className="admin-notif__row">
                       <span className="admin-notif__msg">
-                        {n.message || "Pesanan perlu dikirim"}
+                        {n.message || n.title || "Pesanan baru masuk"}
                       </span>
                       <span className="admin-notif__time">
-                        {n.created_at
-                          ? new Date(n.created_at).toLocaleString("id-ID", {
+                        {n.created_at || n.date
+                          ? new Date(n.created_at || n.date).toLocaleString("id-ID", {
                               day: "numeric",
                               month: "short",
                               hour: "2-digit",

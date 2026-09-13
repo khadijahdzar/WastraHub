@@ -60,8 +60,9 @@ export async function fetchProducts(params = {}) {
   }
 
   try {
+    // Diubah dari per_page: 20 menjadi 100 agar tidak terpotong dan sinkron dengan admin
     const response = await api.get("/products", {
-      params: { per_page: 20, ...query },
+      params: { per_page: 100, ...query },
       signal,
     });
 
@@ -85,8 +86,6 @@ export async function fetchProducts(params = {}) {
   } catch (err) {
     if (isRequestAborted(err)) throw err;
     if (err.response?.status === 401 || err.response?.status === 403) throw err;
-
-    // SILENT FALLBACK: Dihapus total tanpa console.warn
 
     return {
       data: mergeProducts(
@@ -193,7 +192,7 @@ export async function fetchFeatured(options = {}) {
 
   try {
     const response = await api.get("/products", {
-      params: { featured: 1, per_page: 12 },
+      params: { featured: 1, per_page: 100 },
       signal,
     });
 

@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Search, SlidersHorizontal, X } from "lucide-react";
 import ProductCard from "../components/card/ProductCard";
-import { filterProducts } from "../data/products";
 import {
   fetchProducts,
   fetchCategories,
@@ -32,13 +31,17 @@ export default function Collections() {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const [catRes, regRes] = await Promise.all([
-        fetchCategories(),
-        fetchRegions(),
-      ]);
-      if (!cancelled) {
-        setCategories(catRes.data || []);
-        setRegions(regRes.data || []);
+      try {
+        const [catRes, regRes] = await Promise.all([
+          fetchCategories().catch(() => ({ data: [] })),
+          fetchRegions().catch(() => ({ data: [] })),
+        ]);
+        if (!cancelled) {
+          setCategories(catRes.data || []);
+          setRegions(regRes.data || []);
+        }
+      } catch (err) {
+        console.warn("Gagal memuat filter metadata", err);
       }
     })();
     return () => {
@@ -50,22 +53,13 @@ export default function Collections() {
     let cancelled = false;
     setLoading(true);
     (async () => {
-      const params = { category, region, technique, search, sort };
-      const res = await fetchProducts(params);
-      if (cancelled) return;
-      // Jika API mengembalikan list penuh tanpa filter server-side, filter di client
-      let list = res.data || [];
-      if (res.source === "api" && (category || region || technique || search || sort)) {
-        list = filterProducts({
-          category,
-          region,
-          technique,
-          search,
-          sort,
-          // filterProducts expects products array - re-use by temp override
-        });
-        // filterProducts uses local products module — for API data, filter manually:
-        list = (res.data || []).slice();
+      try {
+        const params = { category, region, technique, search, sort };
+        const res = await fetchProducts(params).catch(() => ({ data: [] }));
+        if (cancelled) return;
+
+        let list = res?.data || [];
+
         if (category) {
           const cat = category.toLowerCase().replace(/-/g, " ");
           list = list.filter((p) => {
@@ -100,9 +94,14 @@ export default function Collections() {
         else if (sort === "price-desc") list.sort((a, b) => b.price - a.price);
         else if (sort === "name") list.sort((a, b) => a.name.localeCompare(b.name));
         else if (sort === "rating") list.sort((a, b) => (b.rating || 0) - (a.rating || 0));
+
+        setProducts(list);
+      } catch (err) {
+        console.error("Gagal fetch produk:", err);
+        setProducts([]);
+      } finally {
+        if (!cancelled) setLoading(false);
       }
-      setProducts(list);
-      setLoading(false);
     })();
     return () => {
       cancelled = true;
@@ -123,8 +122,8 @@ export default function Collections() {
     <div className="collections">
       <div className="collections__header">
         <div className="container">
-          <h1>{t("collections_title")}</h1>
-          <p>{t("section_regions_sub")}</p>
+          <h1>{t("collections_title") || "Koleksi Wastra Nusantara"}</h1>
+          <p>{t("section_regions_sub") || "Temukan kain tradisional pilihan."}</p>
         </div>
       </div>
 
@@ -135,16 +134,16 @@ export default function Collections() {
           onClick={() => setSidebarOpen(true)}
         >
           <SlidersHorizontal size={18} />
-          {t("collections_filter")}
+          {t("collections_filter") || "Filter"}
         </button>
 
         <aside className={`collections__sidebar ${sidebarOpen ? "open" : ""}`}>
           <div className="collections__sidebar-header">
-            <h3>{t("collections_filter")}</h3>
+            <h3>{t("collections_filter") || "Filter"}</h3>
             <button
               type="button"
               onClick={() => setSidebarOpen(false)}
-              aria-label={t("collections_close_filter")}
+              aria-label="Tutup filter"
             >
               <X size={20} />
             </button>
@@ -154,14 +153,14 @@ export default function Collections() {
             <Search size={16} />
             <input
               type="search"
-              placeholder={t("collections_search")}
+              placeholder={t("collections_search") || "Cari..."}
               value={search}
               onChange={(e) => updateParam("q", e.target.value)}
             />
           </div>
 
           <div className="filter-group">
-            <h4>{t("collections_technique")}</h4>
+            <h4>{t("collections_technique") || "Teknik"}</h4>
             {TECHNIQUES.map((tech) => (
               <label key={tech} className="filter-check">
                 <input
@@ -174,37 +173,41 @@ export default function Collections() {
             ))}
           </div>
 
-          <div className="filter-group">
-            <h4>{t("collections_region")}</h4>
-            {regions.map((r) => (
-              <label key={r.id} className="filter-check">
-                <input
-                  type="checkbox"
-                  checked={region === r.slug}
-                  onChange={() => updateParam("region", region === r.slug ? "" : r.slug)}
-                />
-                <span>{r.name}</span>
-              </label>
-            ))}
-          </div>
+          {regions && regions.length > 0 && (
+            <div className="filter-group">
+              <h4>{t("collections_region") || "Wilayah"}</h4>
+              {regions.map((r) => (
+                <label key={r.id} className="filter-check">
+                  <input
+                    type="checkbox"
+                    checked={region === r.slug}
+                    onChange={() => updateParam("region", region === r.slug ? "" : r.slug)}
+                  />
+                  <span>{r.name}</span>
+                </label>
+              ))}
+            </div>
+          )}
 
-          <div className="filter-group">
-            <h4>{t("collections_category")}</h4>
-            {categories.map((c) => (
-              <label key={c.id} className="filter-check">
-                <input
-                  type="checkbox"
-                  checked={category === c.slug}
-                  onChange={() => updateParam("category", category === c.slug ? "" : c.slug)}
-                />
-                <span>{c.name}</span>
-              </label>
-            ))}
-          </div>
+          {categories && categories.length > 0 && (
+            <div className="filter-group">
+              <h4>{t("collections_category") || "Kategori"}</h4>
+              {categories.map((c) => (
+                <label key={c.id} className="filter-check">
+                  <input
+                    type="checkbox"
+                    checked={category === c.slug}
+                    onChange={() => updateParam("category", category === c.slug ? "" : c.slug)}
+                  />
+                  <span>{c.name}</span>
+                </label>
+              ))}
+            </div>
+          )}
 
           {hasFilters && (
             <button type="button" className="collections__clear" onClick={clearFilters}>
-              {t("collections_reset")}
+              {t("collections_reset") || "Reset Filter"}
             </button>
           )}
         </aside>
@@ -216,36 +219,38 @@ export default function Collections() {
         <div className="collections__main">
           <div className="collections__toolbar">
             <span className="collections__count">
-              {products.length} {t("collections_found")}
+              {products.length} {t("collections_found") || "produk ditemukan"}
             </span>
             <select
               value={sort}
               onChange={(e) => updateParam("sort", e.target.value)}
               className="collections__sort"
-              aria-label={t("collections_sort")}
+              aria-label="Urutkan produk"
             >
-              <option value="featured">{t("section_featured")}</option>
-              <option value="price-asc">{t("collections_sort_price_asc")}</option>
-              <option value="price-desc">{t("collections_sort_price_desc")}</option>
-              <option value="name">{t("collections_sort_name")}</option>
+              <option value="featured">{t("section_featured") || "Unggulan"}</option>
+              <option value="price-asc">{t("collections_sort_price_asc") || "Harga: Rendah ke Tinggi"}</option>
+              <option value="price-desc">{t("collections_sort_price_desc") || "Harga: Tinggi ke Rendah"}</option>
+              <option value="name">{t("collections_sort_name") || "Nama"}</option>
               <option value="rating">Rating</option>
             </select>
           </div>
 
-          {!loading && products.length === 0 ? (
+          {loading ? (
+            <p style={{ textAlign: "center", padding: "40px" }}>Memuat produk...</p>
+          ) : products.length === 0 ? (
             <div className="collections__empty">
-              <p>{t("collections_empty")}</p>
+              <p>{t("collections_empty") || "Produk tidak ditemukan."}</p>
               <button type="button" onClick={clearFilters}>
-                {t("collections_reset")}
+                {t("collections_reset") || "Reset Filter"}
               </button>
             </div>
-          ) : !loading ? (
+          ) : (
             <div className="product-grid product-grid--collections">
               {products.map((p) => (
                 <ProductCard key={p.id} product={p} />
               ))}
             </div>
-          ) : null}
+          )}
         </div>
       </div>
     </div>

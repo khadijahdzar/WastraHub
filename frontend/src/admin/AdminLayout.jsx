@@ -49,11 +49,20 @@ export default function AdminLayout() {
     try {
       const res = await adminFetchOrders();
       const list = res.data || [];
-      const needShip = list.filter((o) =>
-        ["pending", "unpaid", "paid", "processing"].includes(
-          String(o.status || "").toLowerCase()
-        )
-      );
+      
+      // Diperbaiki agar fleksibel mendeteksi status "belum dibayar", "pending", dsb.
+      const needShip = list.filter((o) => {
+        const rawStatus = String(o.status || "").toLowerCase().trim();
+        return [
+          "pending", 
+          "unpaid", 
+          "paid", 
+          "processing", 
+          "belum-dibayar", 
+          "belum dibayar"
+        ].includes(rawStatus);
+      });
+      
       setNeedShipCount(needShip.length);
 
       const existing = readLocalNotifs();
@@ -77,6 +86,7 @@ export default function AdminLayout() {
         const type = ["paid", "processing"].includes(status)
           ? "order_paid"
           : "order_new";
+          
         if (
           !next.some((n) => String(n.order_id) === key && n.type === type)
         ) {
@@ -84,11 +94,8 @@ export default function AdminLayout() {
             id: Date.now() + Math.random(),
             type,
             order_id: o.id,
-            order_number: o.order_number,
-            message:
-              type === "order_paid"
-                ? `Pesanan ${o.order_number || o.id} sudah dibayar — perlu dikirim`
-                : `Pesanan baru ${o.order_number || o.id} masuk`,
+            order_number: o.order_number || o.id,
+            message: `Pesanan baru masuk #${o.order_number || o.id} (${o.status || 'Pending'})`,
             created_at:
               o.updated_at || o.created_at || new Date().toISOString(),
             read: false,

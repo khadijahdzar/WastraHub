@@ -12,13 +12,15 @@ RUN apt-get update && apt-get install -y \
     && docker-php-ext-install pdo_mysql gd
 
 # 2. Paksa matikan semua modul MPM yang bentrok, lalu aktifkan prefork secara bersih
+# Paksa matikan dan hapus modul MPM event/worker, lalu buat symlink prefork dengan aman
 RUN rm -f /etc/apache2/mods-enabled/mpm_event.load \
     && rm -f /etc/apache2/mods-enabled/mpm_event.conf \
     && rm -f /etc/apache2/mods-enabled/mpm_worker.load \
     && rm -f /etc/apache2/mods-enabled/mpm_worker.conf \
+    && rm -f /etc/apache2/mods-enabled/mpm_prefork.load \
+    && rm -f /etc/apache2/mods-enabled/mpm_prefork.conf \
     && ln -s /etc/apache2/mods-available/mpm_prefork.load /etc/apache2/mods-enabled/ \
     && ln -s /etc/apache2/mods-available/mpm_prefork.conf /etc/apache2/mods-enabled/
-
 # 3. Arahkan Document Root Apache langsung ke folder public Laravel
 ENV APACHE_DOCUMENT_ROOT /var/www/html/public
 RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-available/*.conf

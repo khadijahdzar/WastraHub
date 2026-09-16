@@ -30,8 +30,9 @@ export default function Register() {
         email: form.email,
         password: form.password,
       });
+      localStorage.setItem("wastrahub_user_token", data.token);
       localStorage.setItem("wastrahub_token", data.token);
-      login(data.user);
+      login(data.user, data.token);
       navigate("/");
     } catch (err) {
       setError(err.message || t("register_fail"));

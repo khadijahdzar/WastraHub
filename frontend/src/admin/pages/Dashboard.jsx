@@ -7,9 +7,16 @@ import {
   Package,
   TrendingUp,
   ArrowUpRight,
+  RefreshCw,
+  UserCheck,
 } from "lucide-react";
 import { useLanguage } from "../../context/LanguageContext";
-import { adminFetchOrders, adminFetchProducts, adminFetchStats } from "../../services/adminService";
+import {
+  adminFetchOrders,
+  adminFetchProducts,
+  adminFetchStats,
+  adminFetchCustomers,
+} from "../../services/adminService";
 import "../admin.css";
 
 const formatRupiah = (n) =>
@@ -102,6 +109,7 @@ export default function Dashboard() {
   const { t } = useLanguage();
   const [orders, setOrders] = useState([]);
   const [products, setProducts] = useState([]);
+  const [customersList, setCustomersList] = useState([]);
   const [stats, setStats] = useState({
     revenue: 0,
     orders: 0,
@@ -109,56 +117,86 @@ export default function Dashboard() {
     products: 0,
   });
   const [loading, setLoading] = useState(true);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [lastSynced, setLastSynced] = useState(new Date());
+
+  const load = useCallback(async (isBackground = false) => {
+    if (!isBackground) setLoading(true);
+    setIsSyncing(true);
+    try {
+      const [oRes, pRes, sRes, cRes] = await Promise.all([
+        adminFetchOrders(),
+        adminFetchProducts(),
+        adminFetchStats(),
+        adminFetchCustomers(),
+      ]);
+      const oList = oRes.data || [];
+      const pList = pRes.data || [];
+      const cList = cRes?.data || [];
+
+      setOrders(oList);
+      setProducts(pList);
+      setCustomersList(cList);
+      setLastSynced(new Date());
+
+      const revenue = oList
+        .filter((o) => !["cancelled", "pending", "unpaid"].includes(String(o.status || "").toLowerCase()))
+        .reduce((s, o) => s + Number(o.total_amount || o.total || 0), 0);
+      const uniqueCustomers = new Set([
+        ...oList.map((o) => o.customer_email || o.customer_name || o.user?.email || o.user?.name).filter(Boolean),
+        ...cList.map((c) => c.email).filter(Boolean),
+      ]).size;
+
+      setStats({
+        revenue: sRes.data?.revenue || revenue,
+        orders: sRes.data?.orders || oList.length,
+        customers: sRes.data?.customers || uniqueCustomers || cList.length || oList.length,
+        products: sRes.data?.products || pList.length,
+      });
+    } catch (e) {
+      console.error("[Dashboard] Gagal memuat data:", e);
+    } finally {
+      setLoading(false);
+      setIsSyncing(false);
+    }
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
-    const load = async () => {
-      setLoading(true);
-      try {
-        const [oRes, pRes, sRes] = await Promise.all([
-          adminFetchOrders(),
-          adminFetchProducts(),
-          adminFetchStats(),
-        ]);
-        if (cancelled) return;
-        const oList = oRes.data || [];
-        const pList = pRes.data || [];
-        setOrders(oList);
-        setProducts(pList);
 
-        const revenue = oList
-          .filter((o) => !["cancelled", "pending", "unpaid"].includes(String(o.status || "").toLowerCase()))
-          .reduce((s, o) => s + Number(o.total_amount || o.total || 0), 0);
-        const customers = new Set(
-          oList.map((o) => o.customer_name || o.phone || o.user?.name).filter(Boolean)
-        ).size;
+    load(false);
 
-        setStats({
-          revenue: sRes.data?.revenue || revenue,
-          orders: sRes.data?.orders || oList.length,
-          customers: sRes.data?.customers || customers || oList.length,
-          products: sRes.data?.products || pList.length,
-        });
-      } catch (e) {
-        console.error(e);
-      } finally {
-        if (!cancelled) setLoading(false);
+    const refresh = () => {
+      if (!cancelled && document.visibilityState !== "hidden") {
+        load(true);
       }
     };
-    load();
-    const refresh = () => {
-      if (!cancelled) load();
-    };
+
     window.addEventListener("wastrahub:order-created", refresh);
+    window.addEventListener("wastrahub:order-paid", refresh);
+    window.addEventListener("wastrahub:review-created", refresh);
     window.addEventListener("storage", refresh);
-    const interval = setInterval(load, 10000);
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
+
+    // Auto-polling interval: 4 detik saat tab aktif untuk sinkronisasi live multi-device
+    const interval = setInterval(() => {
+      if (!cancelled && document.visibilityState !== "hidden") {
+        load(true);
+      }
+    }, 4000);
+
     return () => {
       cancelled = true;
       window.removeEventListener("wastrahub:order-created", refresh);
+      window.removeEventListener("wastrahub:order-paid", refresh);
+      window.removeEventListener("wastrahub:review-created", refresh);
       window.removeEventListener("storage", refresh);
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refresh);
       clearInterval(interval);
     };
-  }, []);
+  }, [load]);
 
   const salesSeries = useMemo(() => buildSalesSeries(orders), [orders]);
   const maxBar = Math.max(...salesSeries, 1);
@@ -241,6 +279,71 @@ export default function Dashboard() {
 
   return (
     <div className="dash-page">
+      {/* Real-time sync bar */}
+      <div
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 12,
+          background: "#fff",
+          border: "1px solid #e7dfd5",
+          borderRadius: 12,
+          padding: "12px 18px",
+          marginBottom: 20,
+          boxShadow: "0 1px 3px rgba(0,0,0,0.03)",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <span
+            style={{
+              display: "inline-block",
+              width: 10,
+              height: 10,
+              borderRadius: "50%",
+              backgroundColor: isSyncing ? "#eab308" : "#16a34a",
+              boxShadow: isSyncing
+                ? "0 0 0 3px rgba(234, 179, 8, 0.25)"
+                : "0 0 0 3px rgba(22, 163, 74, 0.25)",
+              transition: "all 0.3s ease",
+            }}
+          />
+          <span style={{ fontWeight: 600, color: "#292524", fontSize: 14 }}>
+            {isSyncing ? "Menyinkronkan data..." : "Real-Time Sync Aktif"}
+          </span>
+          <span style={{ color: "#78716c", fontSize: 13 }}>
+            • Pembaruan otomatis lintas device (Terakhir: {lastSynced.toLocaleTimeString("id-ID")})
+          </span>
+        </div>
+        <button
+          type="button"
+          onClick={() => load(false)}
+          disabled={isSyncing}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            padding: "6px 14px",
+            background: "#f9f7f4",
+            border: "1px solid #d6cbbe",
+            borderRadius: 8,
+            cursor: "pointer",
+            fontSize: 13,
+            fontWeight: 500,
+            color: "#57422f",
+          }}
+        >
+          <RefreshCw
+            size={14}
+            style={{
+              animation: isSyncing ? "spin 1s linear infinite" : "none",
+            }}
+          />
+          {isSyncing ? "Memperbarui..." : "Perbarui Data"}
+        </button>
+      </div>
+
       <div className="dash-stats">
         {cards.map((c) => {
           const Icon = c.icon;
@@ -340,29 +443,118 @@ export default function Dashboard() {
                   <tr>
                     <th>Kode</th>
                     <th>Pembeli</th>
+                    <th>Barang yang Dibeli</th>
                     <th>Status</th>
                     <th>Total</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {recent.map((o) => (
-                    <tr key={o.id}>
-                      <td>{o.order_number || o.id}</td>
-                      <td>{o.customer_name || o.user?.name || "—"}</td>
-                      <td>
-                        <span className={`dash-status dash-status--${String(o.status || "pending").toLowerCase()}`}>
-                          {STATUS_LABEL[String(o.status || "pending").toLowerCase()] || o.status}
-                        </span>
-                      </td>
-                      <td>{formatRupiah(o.total_amount ?? o.total)}</td>
-                    </tr>
-                  ))}
+                  {recent.map((o) => {
+                    const items = o.items || o.details || [];
+                    const email = o.customer_email || o.user?.email || o.email || "";
+                    const name = o.customer_name || o.user?.name || "Pembeli";
+                    return (
+                      <tr key={o.id}>
+                        <td>
+                          <div style={{ fontWeight: 600 }}>{o.order_number || o.id}</div>
+                          <div style={{ fontSize: 12, color: "#8c827a" }}>
+                            {new Date(o.created_at || o.date || Date.now()).toLocaleDateString("id-ID", {
+                              day: "numeric",
+                              month: "short",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </div>
+                        </td>
+                        <td>
+                          <div style={{ fontWeight: 600 }}>{name}</div>
+                          {email && (
+                            <div style={{ fontSize: 12, color: "#78716c" }}>
+                              {email}
+                            </div>
+                          )}
+                        </td>
+                        <td>
+                          <div style={{ fontSize: 13, lineHeight: 1.35 }}>
+                            {items.length > 0 ? (
+                              items.map((item, idx) => (
+                                <div key={idx} style={{ color: "#3d332a" }}>
+                                  • {item.name || "Produk"} <strong>({item.qty || item.quantity || 1}x)</strong>
+                                </div>
+                              ))
+                            ) : (
+                              <span style={{ color: "#8c827a" }}>—</span>
+                            )}
+                          </div>
+                        </td>
+                        <td>
+                          <span className={`dash-status dash-status--${String(o.status || "pending").toLowerCase()}`}>
+                            {STATUS_LABEL[String(o.status || "pending").toLowerCase()] || o.status}
+                          </span>
+                        </td>
+                        <td style={{ fontWeight: 600 }}>{formatRupiah(o.total_amount ?? o.total)}</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
           )}
         </section>
       </div>
+
+      {/* Panel Pengguna Baru Terdaftar */}
+      <section className="dash-panel" style={{ marginTop: 24 }}>
+        <div className="dash-panel__head">
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <UserCheck size={20} color="#795830" />
+            <h2>Aktivitas Pengguna Baru Terdaftar</h2>
+          </div>
+          <span className="dash-panel__hint">Live Sync ({customersList.length} pengguna)</span>
+        </div>
+        {customersList.length === 0 ? (
+          <p className="dash-empty">Belum ada pengguna terdaftar.</p>
+        ) : (
+          <div className="admin-table-wrap">
+            <table className="admin-table dash-table">
+              <thead>
+                <tr>
+                  <th>Nama Pengguna</th>
+                  <th>Email</th>
+                  <th>Tanggal Bergabung</th>
+                  <th>Total Pesanan</th>
+                </tr>
+              </thead>
+              <tbody>
+                {customersList.slice(0, 5).map((cust) => (
+                  <tr key={cust.id}>
+                    <td>
+                      <div style={{ fontWeight: 600 }}>{cust.name || "Pengguna"}</div>
+                    </td>
+                    <td>
+                      <span style={{ color: "#57422f", fontWeight: 500 }}>{cust.email}</span>
+                    </td>
+                    <td>
+                      {cust.created_at
+                        ? new Date(cust.created_at).toLocaleDateString("id-ID", {
+                            day: "numeric",
+                            month: "short",
+                            year: "numeric",
+                          })
+                        : "—"}
+                    </td>
+                    <td>
+                      <span style={{ fontWeight: 600 }}>
+                        {cust.orders_count !== undefined ? cust.orders_count : 0} pesanan
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
     </div>
   );
 }

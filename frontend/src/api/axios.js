@@ -5,9 +5,18 @@ let isBackendOffline = false;
 let lastCheckTime = 0;
 const CHECK_INTERVAL = 15000; // Coba tes koneksi lagi setelah 15 detik
 
+function getNormalizedBaseURL() {
+  let url = (import.meta.env.VITE_API_URL || "http://localhost:8000/api").trim();
+  url = url.replace(/\/+$/, "");
+  if (!url.endsWith("/api")) {
+    url += "/api";
+  }
+  return url;
+}
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "http://localhost:8000/api",
-  timeout: 3000,
+  baseURL: getNormalizedBaseURL(),
+  timeout: 10000,
   headers: {
     "Content-Type": "application/json",
     Accept: "application/json",

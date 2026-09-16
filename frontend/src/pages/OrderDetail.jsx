@@ -254,8 +254,9 @@ export default function OrderDetail() {
               <p>{order.address || "—"}</p>
             </section>
 
-            <div className="order-detail__actions">
-              {order.status === "belum-dibayar" && order.paymentMethod !== "COD" && !order.payment?.includes("COD") && (
+              {(["belum-dibayar", "belum dibayar", "pending", "unpaid", "menunggu"].includes(String(order.status || "").toLowerCase().trim()) ||
+                ["pending", "unpaid"].includes(String(order.statusRaw || "").toLowerCase().trim())) &&
+                !String(order.paymentMethod || order.payment || "").toLowerCase().includes("cod") && (
                 <button
                   type="button"
                   className="order-btn order-btn--primary order-btn--block"
@@ -263,7 +264,7 @@ export default function OrderDetail() {
                   disabled={paying}
                   aria-busy={paying}
                 >
-                  {t("orders_pay_now")}
+                  {t("orders_pay_now") || "Bayar Sekarang"}
                 </button>
               )}
               {order.status === "belum-diterima" && (

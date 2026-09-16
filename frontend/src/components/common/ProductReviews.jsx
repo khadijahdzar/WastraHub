@@ -5,7 +5,7 @@ import { useLanguage } from "../../context/LanguageContext";
 import Button from "./Button";
 import { useAuth } from "../../context/AuthContext";
 import api from "../../api/axios";
-import { getReviews } from "../../utils/reviews";
+import { getReviews, addReview } from "../../utils/reviews";
 import "./product-reviews.css";
 
 function normalizeReview(review) {
@@ -81,14 +81,24 @@ export default function ProductReviews({ productId }) {
     let active = true;
 
     const loadReviews = async () => {
+      const local = getReviews(productId);
       try {
         const response = await api.get(`/products/${productId}/reviews`);
         const serverReviews = Array.isArray(response.data?.data)
           ? response.data.data.map(normalizeReview)
           : [];
-        if (active) setReviews(serverReviews.length > 0 ? serverReviews : getReviews(productId));
+
+        const map = new Map();
+        for (const r of local) {
+          if (r?.id) map.set(String(r.id), r);
+        }
+        for (const r of serverReviews) {
+          if (r?.id) map.set(String(r.id), r);
+        }
+        const merged = Array.from(map.values());
+        if (active) setReviews(merged.length > 0 ? merged : local);
       } catch {
-        if (active) setReviews(getReviews(productId));
+        if (active) setReviews(local);
       }
     };
 
@@ -145,18 +155,48 @@ export default function ProductReviews({ productId }) {
         review: comment.trim(),
       });
       const created = response.data?.data || response.data?.review;
-      if (created) setReviews((previous) => [normalizeReview(created), ...previous]);
+      if (created) {
+        const norm = normalizeReview(created);
+        setReviews((previous) => [norm, ...previous]);
+        addReview(productId, {
+          id: norm.id,
+          userId: norm.userId,
+          userName: norm.userName,
+          rating: norm.rating,
+          comment: norm.comment,
+          createdAt: norm.createdAt,
+          approved: true,
+        });
+      }
       window.dispatchEvent(new CustomEvent("wastrahub:review-created"));
       setComment("");
       setRating(5);
       setSuccess(true);
-    } catch (err) {
-      setError(
-        err.response?.data?.message ||
-          (lang === "en"
-            ? "The review could not be submitted."
-            : "Ulasan belum berhasil dikirim.")
-      );
+    } catch {
+      // Fallback graceful: jika backend offline atau unauthenticated dummy token, simpan ulasan secara lokal
+      const localReview = addReview(productId, {
+        userId: user?.id || user?.email || "usr-" + Date.now(),
+        userName: user?.name || user?.email?.split("@")[0] || "Pengguna",
+        rating,
+        comment: comment.trim(),
+        approved: true,
+      });
+
+      setReviews((previous) => [
+        {
+          id: localReview.id,
+          userId: localReview.userId,
+          userName: localReview.userName,
+          rating: localReview.rating,
+          comment: localReview.comment,
+          createdAt: localReview.createdAt,
+        },
+        ...previous,
+      ]);
+      window.dispatchEvent(new CustomEvent("wastrahub:review-created"));
+      setComment("");
+      setRating(5);
+      setSuccess(true);
     }
   };
 

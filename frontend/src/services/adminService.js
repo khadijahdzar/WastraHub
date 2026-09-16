@@ -1,6 +1,6 @@
 import api from "../api/axios";
 import { products as localProducts, categories as localCategories } from "../data/products";
-import { getAllReviewsFlat } from "../utils/reviews";
+import { getAllReviewsFlat, setReviewApproved, deleteReviewLocal } from "../utils/reviews";
 import { readLocalOrders, writeLocalOrders, normalizeOrder, mapOrderStatus } from "./orderService";
 
 // RE-EXPORT agar komponen lama yang memanggil fungsi user lewat adminService tidak crash
@@ -301,11 +301,37 @@ export async function adminFetchReviews() {
   }
 }
 
+export async function adminFetchCustomers() {
+  try {
+    const res = await api.get("/admin/customers");
+    const list = unwrapList(res);
+    return { data: list, source: "api" };
+  } catch {
+    try {
+      const users = JSON.parse(localStorage.getItem("wastrahub_registered_users") || "[]");
+      const mapped = (Array.isArray(users) ? users : []).map((u) => ({
+        id: u.id,
+        name: u.name,
+        email: u.email,
+        role: u.role || "user",
+        orders_count: 0,
+        reviews_count: 0,
+        created_at: u.createdAt || u.created_at || new Date().toISOString(),
+      }));
+      return { data: mapped, source: "local" };
+    } catch {
+      return { data: [], source: "local" };
+    }
+  }
+}
+
 export async function adminApproveReview(id) {
   try {
     const res = await api.patch(`/admin/reviews/${id}/approve`);
+    setReviewApproved(id, true);
     return { data: unwrapOne(res), source: "api" };
   } catch {
+    setReviewApproved(id, true);
     return { data: { id, approved: true }, source: "local" };
   }
 }
@@ -313,8 +339,10 @@ export async function adminApproveReview(id) {
 export async function adminDeleteReview(id) {
   try {
     const apiRes = await api.delete(`/admin/reviews/${id}`);
+    deleteReviewLocal(id);
     return { data: apiRes, source: "api" };
   } catch {
+    deleteReviewLocal(id);
     return { source: "local" };
   }
 }

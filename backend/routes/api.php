@@ -39,6 +39,9 @@ Route::get('/regions/{region}', [RegionController::class, 'show']);
 // Auth
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
+Route::get('/login', function () {
+    return response()->json(['message' => 'Unauthenticated.'], 401);
+})->name('login');
 Route::post('/ai/chat', AiChatController::class)->middleware('throttle:10,1');
 
 // Public product reviews
@@ -112,6 +115,7 @@ Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function ()
     // Reviews
     Route::get('/reviews', [AdminReviewController::class, 'index']);
     Route::get('/reviews/{id}', [AdminReviewController::class, 'show']);
+    Route::patch('/reviews/{id}/approve', [AdminReviewController::class, 'approve']);
     Route::delete('/reviews/{id}', [AdminReviewController::class, 'destroy']);
 
     // Reports

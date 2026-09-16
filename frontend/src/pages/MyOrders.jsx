@@ -112,9 +112,26 @@ export default function MyOrders() {
     }
   };
 
-  const filtered = orders.filter((o) => o.status === activeTab);
+  const isOrderUnpaid = (order) => {
+    const s = String(order?.status || "").toLowerCase().trim();
+    const raw = String(order?.statusRaw || "").toLowerCase().trim();
+    return (
+      ["belum-dibayar", "belum dibayar", "pending", "unpaid", "menunggu"].includes(s) ||
+      ["pending", "unpaid"].includes(raw)
+    );
+  };
+
+  const filtered = orders.filter((o) => {
+    if (activeTab === "belum-dibayar") {
+      return isOrderUnpaid(o);
+    }
+    return o.status === activeTab;
+  });
   const currentTab = TABS.find((tab) => tab.id === activeTab);
-  const getCount = (id) => orders.filter((o) => o.status === id).length;
+  const getCount = (id) =>
+    id === "belum-dibayar"
+      ? orders.filter(isOrderUnpaid).length
+      : orders.filter((o) => o.status === id).length;
 
   return (
     <div className="orders-page">
@@ -230,7 +247,8 @@ export default function MyOrders() {
                       >
                         {t("orders_detail")}
                       </Link>
-                      {order.status === "belum-dibayar" && (
+                      {isOrderUnpaid(order) &&
+                        !String(order.payment || order.paymentMethod || "").toLowerCase().includes("cod") && (
                         <button
                           type="button"
                           className="order-btn order-btn--primary"
@@ -238,7 +256,7 @@ export default function MyOrders() {
                           disabled={isPaying || !!payingId}
                           aria-busy={isPaying}
                         >
-                          {t("orders_pay_now")}
+                          {t("orders_pay_now") || "Bayar Sekarang"}
                         </button>
                       )}
                       {order.status === "belum-diterima" && (

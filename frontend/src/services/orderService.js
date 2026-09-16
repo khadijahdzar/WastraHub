@@ -107,9 +107,11 @@ export function normalizeOrder(o) {
     subtotal: total,
     shipping: 0,
     payment,
+    paymentMethod: o.paymentMethod || payment,
     address,
     phone: o.phone || "",
     customer_name: o.customer_name || o.user?.name || "Pembeli",
+    customer_email: o.user?.email || o.customer_email || o.email || "",
     items,
     details: items,
     raw: o,
@@ -118,9 +120,18 @@ export function normalizeOrder(o) {
 
 export function readLocalOrders() {
   try {
-    const raw = JSON.parse(localStorage.getItem("wastrahub_orders") || "[]");
-    if (!Array.isArray(raw)) return [];
-    return raw.map(normalizeOrder).filter(Boolean);
+    const raw1 = JSON.parse(localStorage.getItem("wastrahub_orders") || "[]");
+    const raw2 = JSON.parse(localStorage.getItem("wastrahub_user_orders") || "[]");
+    const combined = [...(Array.isArray(raw1) ? raw1 : []), ...(Array.isArray(raw2) ? raw2 : [])];
+    const map = new Map();
+    for (const item of combined) {
+      if (!item) continue;
+      const key = String(item.id || item.code || item.order_number);
+      if (!map.has(key)) {
+        map.set(key, normalizeOrder(item));
+      }
+    }
+    return Array.from(map.values()).filter(Boolean);
   } catch {
     return [];
   }
@@ -128,7 +139,9 @@ export function readLocalOrders() {
 
 export function writeLocalOrders(list) {
   try {
-    localStorage.setItem("wastrahub_orders", JSON.stringify(list));
+    const json = JSON.stringify(list);
+    localStorage.setItem("wastrahub_orders", json);
+    localStorage.setItem("wastrahub_user_orders", json);
   } catch {
     /* ignore */
   }
@@ -149,12 +162,17 @@ export async function createOrder(payload) {
       throw toError(err, "Gagal membuat pesanan");
     }
 
+    const isCod = String(payload.payment_method || payload.payment || "").toLowerCase().includes("cod");
     const localOrder = normalizeOrder({
       id: Date.now(),
       order_number: `WH-LOCAL-${Date.now()}`,
       total_amount: payload.total_amount,
-      status: "belum-dikirim",
+      status: isCod ? "belum-dikirim" : "belum-dibayar",
+      statusRaw: isCod ? "processing" : "pending",
+      payment_method: payload.payment_method || payload.payment || "transfer",
+      paymentMethod: payload.payment_method || payload.payment || "transfer",
       customer_name: payload.customer_name || "Pembeli",
+      customer_email: payload.customer_email || payload.email || "",
       phone: payload.phone,
       address: payload.address,
       items: payload.items || [],
@@ -176,12 +194,13 @@ export async function payOrder(id) {
     const order = normalizeOrder(body?.data ?? body);
     
     const prev = readLocalOrders();
-    const idx = prev.findIndex((o) => String(o.id) === String(id) || String(o.code) === String(id));
+    const idx = prev.findIndex((o) => String(o.id) === String(id) || String(o.code) === String(id) || String(o.order_number) === String(id));
     if (idx >= 0) {
       prev[idx].status = "belum-dikirim";
+      prev[idx].statusRaw = "paid";
       writeLocalOrders(prev);
     }
-
+    window.dispatchEvent(new CustomEvent("wastrahub:order-paid", { detail: order || prev[idx] }));
     return { data: order, source: "api", message: body?.message };
   } catch (err) {
     if (!isOffline(err) && err.response?.status !== 401) {
@@ -189,10 +208,12 @@ export async function payOrder(id) {
     }
 
     const prev = readLocalOrders();
-    const idx = prev.findIndex((o) => String(o.id) === String(id) || String(o.code) === String(id));
+    const idx = prev.findIndex((o) => String(o.id) === String(id) || String(o.code) === String(id) || String(o.order_number) === String(id));
     if (idx >= 0) {
       prev[idx].status = "belum-dikirim";
+      prev[idx].statusRaw = "paid";
       writeLocalOrders(prev);
+      window.dispatchEvent(new CustomEvent("wastrahub:order-paid", { detail: prev[idx] }));
       return { data: prev[idx], source: "dummy", message: "Pembayaran berhasil (offline)" };
     }
     throw toError(err, "Pesanan tidak ditemukan");

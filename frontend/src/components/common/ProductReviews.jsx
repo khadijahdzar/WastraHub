@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { Star } from "lucide-react";
 import { useLanguage } from "../../context/LanguageContext";
@@ -112,10 +112,10 @@ export default function ProductReviews({ productId }) {
   const avg =
     reviews.length > 0
       ? Math.round(
-          (reviews.reduce((a, r) => a + Number(r.rating || 0), 0) /
-            reviews.length) *
-            10
-        ) / 10
+        (reviews.reduce((a, r) => a + Number(r.rating || 0), 0) /
+          reviews.length) *
+        10
+      ) / 10
       : null;
 
   const handleSubmit = async (e) => {
@@ -252,7 +252,7 @@ export default function ProductReviews({ productId }) {
 
             <textarea
               rows={4}
-placeholder={t("review_placeholder")}
+              placeholder={t("review_placeholder")}
               value={comment}
               onChange={(e) => setComment(e.target.value)}
               maxLength={500}
@@ -270,7 +270,7 @@ placeholder={t("review_placeholder")}
             {error && <p className="product-reviews__error">{error}</p>}
             {success && (
               <p className="product-reviews__success">
-{t("review_success")}
+                {t("review_success")}
               </p>
             )}
           </form>
@@ -280,7 +280,7 @@ placeholder={t("review_placeholder")}
       <div className="product-reviews__list">
         {reviews.length === 0 ? (
           <p className="product-reviews__empty">
-{t("product_no_reviews")} {t("review_for_product")}
+            {t("product_no_reviews")} {t("review_for_product")}
           </p>
         ) : (
           reviews.map((r) => (

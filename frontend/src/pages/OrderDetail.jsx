@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams, Link, Navigate } from "react-router-dom";
 import { useLanguage } from "../context/LanguageContext";
 import Badge from "../components/common/Badge";

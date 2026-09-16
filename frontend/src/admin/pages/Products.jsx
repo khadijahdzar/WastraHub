@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Plus, Pencil, Trash2, ImagePlus } from "lucide-react";
 import {
   adminFetchProducts,
@@ -275,11 +275,10 @@ export default function Products() {
                     <td>{p.technique || p.type || "—"}</td>
                     <td>
                       <span
-                        className={`admin-badge ${
-                          p.status === "active"
+                        className={`admin-badge ${p.status === "active"
                             ? "admin-badge--success"
                             : "admin-badge--muted"
-                        }`}
+                          }`}
                       >
                         {p.status}
                       </span>
@@ -339,11 +338,10 @@ export default function Products() {
                 )}
                 <button
                   type="button"
-                  className={`admin-btn admin-btn--sm ${
-                    n === currentPage
+                  className={`admin-btn admin-btn--sm ${n === currentPage
                       ? "admin-btn--primary"
                       : "admin-btn--ghost"
-                  }`}
+                    }`}
                   onClick={() => setPage(n)}
                 >
                   {n}

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCart } from "../context/CartContext";
 import { useAuth } from "../context/AuthContext";
@@ -18,7 +18,7 @@ export default function Checkout() {
   const navigate = useNavigate();
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  
+
   const [voucherDiscount] = useState(() => {
     try {
       const saved = localStorage.getItem("wastrahub_applied_voucher");
@@ -101,7 +101,7 @@ export default function Checkout() {
 
         const fullAddress = [form.address, form.city, form.postal].filter(Boolean).join(", ");
         const finalTotal = Math.max(0, subtotal - voucherDiscount);
-        
+
         const payload = {
           customer_name: form.name.trim(),
           phone: form.phone.trim(),
@@ -128,7 +128,7 @@ export default function Checkout() {
         clearCart();
         localStorage.removeItem("wastrahub_applied_voucher");
         const orderId = order?.id || order?.order_number || `WH-${Date.now()}`;
-        
+
         const todayObj = new Date();
         const estStartObj = new Date();
         estStartObj.setDate(todayObj.getDate() + 2);
@@ -150,8 +150,8 @@ export default function Checkout() {
               form.payment === "ewallet"
                 ? `E-Wallet ${form.ewallet}`
                 : form.payment === "cod"
-                ? "COD"
-                : `Transfer Bank ${(form.bank || "").toUpperCase()}`,
+                  ? "COD"
+                  : `Transfer Bank ${(form.bank || "").toUpperCase()}`,
             bankName: (form.bank || "bca").toUpperCase(),
             bankAccount: "1234567890",
             items: items.map((i) => ({

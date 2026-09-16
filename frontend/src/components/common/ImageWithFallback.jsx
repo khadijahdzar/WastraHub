@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 
 const PLACEHOLDER_SVG =
   "data:image/svg+xml," +

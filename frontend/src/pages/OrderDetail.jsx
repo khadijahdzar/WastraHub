@@ -69,7 +69,6 @@ export default function OrderDetail() {
         const res = await fetchOrder(id);
         if (!cancelled) {
           let fetchedData = res.data;
-          // Fallback ke localStorage jika API belum mengembalikan format tanggal lengkap
           if (fetchedData && (!fetchedData.estimatedStart || !fetchedData.estimatedEnd)) {
             const localOrders = JSON.parse(localStorage.getItem("wastrahub_user_orders") || "[]");
             const foundLocal = localOrders.find((o) => String(o.id) === String(id));
@@ -81,7 +80,6 @@ export default function OrderDetail() {
         }
       } catch {
         if (!cancelled) {
-          // Fallback murni ke localStorage untuk testing lokal jika API gagal
           try {
             const localOrders = JSON.parse(localStorage.getItem("wastrahub_user_orders") || "[]");
             const foundLocal = localOrders.find((o) => String(o.id) === String(id));
@@ -117,7 +115,7 @@ export default function OrderDetail() {
       setPayModalOpen(false);
       showToast(
         t("orders_pay_success") ||
-          "Pembayaran berhasil! Pesanan Anda sedang diproses untuk dikirim."
+        "Pembayaran berhasil! Pesanan Anda sedang diproses untuk dikirim."
       );
     } catch (err) {
       showToast(err.message || "Gagal memproses pembayaran", "error");
@@ -140,11 +138,10 @@ export default function OrderDetail() {
     trackingSteps.findIndex(([status]) => status === order.status)
   );
 
-  // Fungsi format estimasi yang aman dari "Invalid Date"
   const formatEstimate = (value) => {
     if (!value) return "Segera";
     const dateObj = new Date(value);
-    if (isNaN(dateObj.getTime())) return value; // Jika berupa teks biasa atau invalid, tampilkan apa adanya
+    if (isNaN(dateObj.getTime())) return value;
     return dateObj.toLocaleDateString("id-ID", { day: "numeric", month: "short" });
   };
 
@@ -241,6 +238,7 @@ export default function OrderDetail() {
                 </div>
               </dl>
             </section>
+
             <section className="order-detail__panel">
               <h2>{t("orders_address")}</h2>
               {order.customer_name && (
@@ -254,9 +252,9 @@ export default function OrderDetail() {
               <p>{order.address || "—"}</p>
             </section>
 
-              {(["belum-dibayar", "belum dibayar", "pending", "unpaid", "menunggu"].includes(String(order.status || "").toLowerCase().trim()) ||
-                ["pending", "unpaid"].includes(String(order.statusRaw || "").toLowerCase().trim())) &&
-                !String(order.paymentMethod || order.payment || "").toLowerCase().includes("cod") && (
+            {(["belum-dibayar", "belum dibayar", "pending", "unpaid", "menunggu"].includes(String(order.status || "").toLowerCase().trim()) ||
+              ["pending", "unpaid"].includes(String(order.statusRaw || "").toLowerCase().trim())) &&
+              !String(order.paymentMethod || order.payment || "").toLowerCase().includes("cod") && (
                 <button
                   type="button"
                   className="order-btn order-btn--primary order-btn--block"
@@ -267,15 +265,14 @@ export default function OrderDetail() {
                   {t("orders_pay_now") || "Bayar Sekarang"}
                 </button>
               )}
-              {order.status === "belum-diterima" && (
-                <button type="button" className="order-btn order-btn--primary order-btn--block">
-                  {t("orders_received")}
-                </button>
-              )}
-              <Link to="/orders" className="order-btn order-btn--ghost order-btn--block">
-                {t("orders_back")}
-              </Link>
-            </div>
+            {order.status === "belum-diterima" && (
+              <button type="button" className="order-btn order-btn--primary order-btn--block">
+                {t("orders_received")}
+              </button>
+            )}
+            <Link to="/orders" className="order-btn order-btn--ghost order-btn--block">
+              {t("orders_back")}
+            </Link>
           </aside>
         </div>
       </div>

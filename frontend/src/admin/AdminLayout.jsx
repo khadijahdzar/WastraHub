@@ -124,27 +124,45 @@ export default function AdminLayout() {
 
   useEffect(() => {
     pollPaidOrders();
-    const interval = setInterval(pollPaidOrders, 12000);
-    const onPaid = () => {
+    const interval = setInterval(pollPaidOrders, 10000);
+    const onSync = () => {
       refreshNotifs();
       pollPaidOrders();
     };
-    const onCreated = () => {
-      refreshNotifs();
-      pollPaidOrders();
+
+    let bc;
+    if (typeof BroadcastChannel !== "undefined") {
+      try {
+        bc = new BroadcastChannel("wastrahub_sync");
+        bc.onmessage = onSync;
+      } catch {
+        /* ignore */
+      }
+    }
+
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") {
+        onSync();
+      }
     };
+
     const echo = window.Echo;
     const channel = echo?.private?.("admin-orders");
-    channel?.listen?.(".order.created", onCreated);
-    window.addEventListener("wastrahub:order-paid", onPaid);
-    window.addEventListener("wastrahub:order-created", onCreated);
-    window.addEventListener("storage", onPaid);
+    channel?.listen?.(".order.created", onSync);
+
+    window.addEventListener("wastrahub:order-paid", onSync);
+    window.addEventListener("wastrahub:order-created", onSync);
+    window.addEventListener("storage", onSync);
+    document.addEventListener("visibilitychange", onVisibility);
+
     return () => {
       clearInterval(interval);
-      window.removeEventListener("wastrahub:order-paid", onPaid);
-      window.removeEventListener("wastrahub:order-created", onCreated);
-      window.removeEventListener("storage", onPaid);
-      channel?.stopListening?.(".order.created", onCreated);
+      window.removeEventListener("wastrahub:order-paid", onSync);
+      window.removeEventListener("wastrahub:order-created", onSync);
+      window.removeEventListener("storage", onSync);
+      document.removeEventListener("visibilitychange", onVisibility);
+      if (bc) bc.close();
+      channel?.stopListening?.(".order.created", onSync);
       echo?.leave?.("private-admin-orders");
     };
   }, [pollPaidOrders, refreshNotifs]);

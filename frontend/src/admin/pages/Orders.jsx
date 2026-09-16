@@ -76,18 +76,40 @@ export default function Orders() {
 
   useEffect(() => {
     load();
-    const onPaid = () => load();
-    const onUpdated = () => load();
-    window.addEventListener("wastrahub:order-paid", onPaid);
-    window.addEventListener("wastrahub:order-created", onPaid);
-    window.addEventListener("wastrahub:orders-updated", onUpdated);
-    window.addEventListener("storage", onPaid);
-    const interval = setInterval(load, 20000);
+    const onSync = () => load();
+    
+    let bc;
+    if (typeof BroadcastChannel !== "undefined") {
+      try {
+        bc = new BroadcastChannel("wastrahub_sync");
+        bc.onmessage = onSync;
+      } catch {
+        /* ignore */
+      }
+    }
+
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") {
+        onSync();
+      }
+    };
+
+    window.addEventListener("wastrahub:order-paid", onSync);
+    window.addEventListener("wastrahub:order-created", onSync);
+    window.addEventListener("wastrahub:orders-updated", onSync);
+    window.addEventListener("storage", onSync);
+    window.addEventListener("focus", onSync);
+    document.addEventListener("visibilitychange", onVisibility);
+
+    const interval = setInterval(load, 10000);
     return () => {
-      window.removeEventListener("wastrahub:order-paid", onPaid);
-      window.removeEventListener("wastrahub:order-created", onPaid);
-      window.removeEventListener("wastrahub:orders-updated", onUpdated);
-      window.removeEventListener("storage", onPaid);
+      if (bc) bc.close();
+      window.removeEventListener("wastrahub:order-paid", onSync);
+      window.removeEventListener("wastrahub:order-created", onSync);
+      window.removeEventListener("wastrahub:orders-updated", onSync);
+      window.removeEventListener("storage", onSync);
+      window.removeEventListener("focus", onSync);
+      document.removeEventListener("visibilitychange", onVisibility);
       clearInterval(interval);
     };
   }, [load]);

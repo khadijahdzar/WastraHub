@@ -147,6 +147,27 @@ export function writeLocalOrders(list) {
   }
 }
 
+export function broadcastSync(eventName, detail) {
+  window.dispatchEvent(new CustomEvent(eventName, { detail }));
+  if (typeof BroadcastChannel !== "undefined") {
+    try {
+      const bc = new BroadcastChannel("wastrahub_sync");
+      bc.postMessage({ type: eventName, detail, time: Date.now() });
+      bc.close();
+    } catch {
+      /* ignore */
+    }
+  }
+  try {
+    localStorage.setItem(
+      "wastrahub_last_sync",
+      JSON.stringify({ type: eventName, detail, time: Date.now() })
+    );
+  } catch {
+    /* ignore */
+  }
+}
+
 export async function createOrder(payload) {
   try {
     const res = await api.post("/orders", payload);
@@ -156,6 +177,7 @@ export async function createOrder(payload) {
     const prev = readLocalOrders();
     writeLocalOrders([order, ...prev]);
 
+    broadcastSync("wastrahub:order-created", order);
     return { data: order, source: "api" };
   } catch (err) {
     if (!isOffline(err) && err.response?.status !== 401) {
@@ -182,7 +204,7 @@ export async function createOrder(payload) {
     const prev = readLocalOrders();
     writeLocalOrders([localOrder, ...prev]);
 
-    window.dispatchEvent(new CustomEvent("wastrahub:order-created", { detail: localOrder }));
+    broadcastSync("wastrahub:order-created", localOrder);
     return { data: localOrder, source: "dummy" };
   }
 }
@@ -200,7 +222,7 @@ export async function payOrder(id) {
       prev[idx].statusRaw = "paid";
       writeLocalOrders(prev);
     }
-    window.dispatchEvent(new CustomEvent("wastrahub:order-paid", { detail: order || prev[idx] }));
+    broadcastSync("wastrahub:order-paid", order || prev[idx]);
     return { data: order, source: "api", message: body?.message };
   } catch (err) {
     if (!isOffline(err) && err.response?.status !== 401) {
@@ -213,7 +235,7 @@ export async function payOrder(id) {
       prev[idx].status = "belum-dikirim";
       prev[idx].statusRaw = "paid";
       writeLocalOrders(prev);
-      window.dispatchEvent(new CustomEvent("wastrahub:order-paid", { detail: prev[idx] }));
+      broadcastSync("wastrahub:order-paid", prev[idx]);
       return { data: prev[idx], source: "dummy", message: "Pembayaran berhasil (offline)" };
     }
     throw toError(err, "Pesanan tidak ditemukan");

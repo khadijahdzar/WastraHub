@@ -172,6 +172,16 @@ export default function Dashboard() {
       }
     };
 
+    let bc;
+    if (typeof BroadcastChannel !== "undefined") {
+      try {
+        bc = new BroadcastChannel("wastrahub_sync");
+        bc.onmessage = refresh;
+      } catch {
+        /* ignore */
+      }
+    }
+
     window.addEventListener("wastrahub:order-created", refresh);
     window.addEventListener("wastrahub:order-paid", refresh);
     window.addEventListener("wastrahub:review-created", refresh);
@@ -188,6 +198,7 @@ export default function Dashboard() {
 
     return () => {
       cancelled = true;
+      if (bc) bc.close();
       window.removeEventListener("wastrahub:order-created", refresh);
       window.removeEventListener("wastrahub:order-paid", refresh);
       window.removeEventListener("wastrahub:review-created", refresh);

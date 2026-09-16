@@ -276,8 +276,8 @@ export default function Products() {
                     <td>
                       <span
                         className={`admin-badge ${p.status === "active"
-                            ? "admin-badge--success"
-                            : "admin-badge--muted"
+                          ? "admin-badge--success"
+                          : "admin-badge--muted"
                           }`}
                       >
                         {p.status}
@@ -339,8 +339,8 @@ export default function Products() {
                 <button
                   type="button"
                   className={`admin-btn admin-btn--sm ${n === currentPage
-                      ? "admin-btn--primary"
-                      : "admin-btn--ghost"
+                    ? "admin-btn--primary"
+                    : "admin-btn--ghost"
                     }`}
                   onClick={() => setPage(n)}
                 >
